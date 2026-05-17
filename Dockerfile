@@ -22,7 +22,7 @@ WORKDIR /var/www/html
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq-dev default-libmysqlclient-dev \
+    && apt-get install -y --no-install-recommends curl libpq-dev default-libmysqlclient-dev \
     && docker-php-ext-install pdo_pgsql pdo_mysql opcache \
     && a2enmod rewrite headers \
     && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
