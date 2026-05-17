@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Socialite\Contracts\Factory as SocialiteFactory;
 
@@ -18,7 +19,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->forceRequestRootUrl();
+        $this->configureDynamicUrls();
+
+        Vite::createAssetPathsUsing(function (string $path) {
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                return $path;
+            }
+
+            return '/'.ltrim($path, '/');
+        });
 
         $caBundle = base_path('.local/cacert.pem');
 
@@ -35,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    private function forceRequestRootUrl(): void
+    private function configureDynamicUrls(): void
     {
         if ($this->app->runningInConsole()) {
             return;
@@ -47,6 +56,13 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        URL::forceRootUrl($request->getSchemeAndHttpHost());
+        $root = $request->getSchemeAndHttpHost();
+
+        URL::forceRootUrl($root);
+
+        config([
+            'app.url' => $root,
+            'services.google.redirect' => $root.'/auth/google/callback',
+        ]);
     }
 }

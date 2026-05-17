@@ -24,6 +24,7 @@ if [ -z "$DB_PASSWORD" ]; then
 fi
 
 php artisan config:clear 2>/dev/null || true
+rm -f bootstrap/cache/config.php 2>/dev/null || true
 php artisan route:clear 2>/dev/null || true
 php artisan view:clear 2>/dev/null || true
 
@@ -52,7 +53,7 @@ until php -r "
 done
 echo "MySQL OK."
 
-php artisan config:cache
+# Nao usar config:cache: APP_URL fixo quebra CSS/JS em dominios diferentes (sslip vs adm.chatboot.cloud).
 php artisan route:cache
 php artisan view:cache
 

@@ -16,7 +16,7 @@ Route::get('/auth/google/status', function () {
     return response()->json([
         'enabled' => is_string($clientId) && $clientId !== ''
             && is_string($clientSecret) && $clientSecret !== '',
-        'redirect_uri' => config('services.google.redirect'),
+        'redirect_uri' => url('/auth/google/callback'),
     ]);
 })->name('api.google.status');
 
