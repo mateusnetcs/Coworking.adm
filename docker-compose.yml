@@ -11,7 +11,8 @@ services:
       MYSQL_PASSWORD: '${DB_PASSWORD}'
       MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
     volumes:
-      - mysql_data:/var/lib/mysql
+      # Nome novo = volume vazio no proximo deploy (senha MySQL recriada do zero).
+      - mysql_data_v2:/var/lib/mysql
     healthcheck:
       test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1']
       interval: 5s
@@ -40,5 +41,5 @@ services:
         condition: service_healthy
 
 volumes:
-  mysql_data:
+  mysql_data_v2:
   storage_data:
