@@ -1,7 +1,8 @@
 <template>
-    <div class="min-h-screen flex flex-col items-center justify-center p-margin-mobile bg-slate-50">
-        <div class="w-full max-w-md">
-            <div class="flex items-center justify-center gap-sm mb-xl">
+    <div class="relative min-h-screen flex flex-col items-center justify-center p-margin-mobile bg-slate-50 overflow-hidden">
+        <LoginFloatingLogos />
+        <div class="relative z-20 w-full max-w-md pointer-events-none">
+            <div class="pointer-events-auto flex items-center justify-center gap-sm mb-xl">
                 <div class="w-12 h-12 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-sm">
                     <AppIcon name="calendar_month" size="lg" />
                 </div>
@@ -11,7 +12,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-level-1 border border-slate-200 p-lg">
+            <div class="pointer-events-auto bg-white rounded-xl shadow-level-1 border border-slate-200 p-lg">
                 <h2 class="text-headline-sm font-semibold text-on-surface mb-md">Entrar</h2>
 
                 <form class="space-y-4" @submit.prevent="submit">
@@ -102,6 +103,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import LoginFloatingLogos from '../components/LoginFloatingLogos.vue';
 import AppTextField from '../components/AppTextField.vue';
 import { api, applyAuthToken } from '../bootstrap';
 

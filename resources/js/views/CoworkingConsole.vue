@@ -1,5 +1,5 @@
 <template>
-    <div class="flex-1 overflow-y-auto p-margin-mobile md:p-margin-desktop h-full">
+    <div class="relative flex-1 overflow-y-auto p-margin-mobile md:p-margin-desktop h-full">
         <div class="max-w-[1120px] mx-auto w-full h-full flex flex-col lg:flex-row gap-lg pb-lg">
             <!-- Grade principal -->
             <div class="flex-1 bg-white rounded-xl shadow-level-1 border border-slate-200 flex flex-col overflow-hidden min-h-[600px]">
@@ -47,139 +47,86 @@
                     </div>
                 </div>
 
-                <!-- Timeline -->
-                <div class="flex-1 overflow-y-auto bg-slate-50 relative p-md flex flex-col min-h-0">
-                    <p class="text-label-sm text-slate-500 mb-sm flex items-center gap-1 shrink-0">
+                <!-- Grade de horários -->
+                <div class="flex-1 overflow-y-auto bg-slate-50 relative p-md flex flex-col gap-md min-h-0">
+                    <p class="text-label-sm text-slate-500 flex items-center gap-1 shrink-0">
                         <AppIcon name="check_box" size="sm" />
-                        Marque as caixas dos horários que deseja reservar (em sequência, sem pular horas).
+                        Marque os horários em sequência (sem pular horas).
                     </p>
                     <div
                         v-if="hasSelection && !selectionConflict && !selectionNotContiguous"
-                        class="mb-sm flex flex-wrap items-center gap-sm rounded-lg border border-success-green bg-success-green-bg px-md py-sm shrink-0"
+                        class="selection-banner shrink-0"
                     >
-                        <span class="text-label-md font-medium text-success-green-text">{{ selectionLabel }}</span>
-                        <button type="button" class="h-9 px-md bg-primary text-on-primary rounded-lg text-label-sm font-medium" @click="confirmSelection">
-                            Reservar horários selecionados
-                        </button>
-                        <button type="button" class="h-9 px-md border border-slate-300 text-slate-600 rounded-lg text-label-sm" @click="clearSelection">
-                            Limpar seleção
-                        </button>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Horários selecionados</p>
+                            <p class="text-lg font-bold text-primary mt-0.5">{{ selectionLabel }}</p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto shrink-0">
+                            <button type="button" class="h-10 px-4 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors" @click="confirmSelection">
+                                Reservar
+                            </button>
+                            <button type="button" class="h-10 px-4 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors" @click="clearSelection">
+                                Limpar
+                            </button>
+                        </div>
                     </div>
-                    <p v-if="selectionNotContiguous" class="mb-sm text-body-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-md py-sm shrink-0">
-                        Selecione horários em sequência (ex.: 10h, 11h e 12h). Não deixe horas vazias no meio.
+                    <p v-if="selectionNotContiguous" class="text-body-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 shrink-0">
+                        Selecione horários em sequência (ex.: 15h, 16h e 17h). Não deixe horas vazias no meio.
                     </p>
-                    <p v-if="hasSelection && selectionConflict" class="mb-sm text-body-sm text-error bg-error-container rounded-lg px-md py-sm shrink-0">
+                    <p v-if="hasSelection && selectionConflict" class="text-body-sm text-error bg-error-container rounded-lg px-4 py-3 shrink-0">
                         Algum horário marcado conflita com reserva existente.
                     </p>
                     <div v-if="loadingGrid" class="absolute inset-0 flex items-center justify-center bg-slate-50/80 z-30">
                         <span class="text-body-sm text-slate-500">Carregando agenda…</span>
                     </div>
 
-                    <div class="relative w-full shrink-0" :style="{ height: `${timelineHeight}px` }">
-                        <!-- Marcadores de hora -->
-                        <div class="absolute left-0 top-0 bottom-0 w-16 border-r border-slate-200 flex flex-col text-slate-400 text-label-sm pb-8">
-                            <div
-                                v-for="hour in hours"
-                                :key="hour"
-                                class="relative h-20 -mt-3 text-right pr-sm shrink-0"
-                            >
-                                {{ padHour(hour) }}:00
-                            </div>
-                        </div>
-
-                        <!-- Linhas da grade -->
-                        <div class="absolute left-16 right-0 top-0 bottom-0 flex flex-col pointer-events-none">
-                            <div
-                                v-for="hour in hours"
-                                :key="`line-${hour}`"
-                                class="border-b border-slate-200 w-full h-20 shrink-0"
-                            />
-                        </div>
-
-                        <!-- Caixas de seleção por horário -->
-                        <div
-                            class="absolute left-16 right-0 top-0 bottom-0 pl-sm z-[5]"
-                        >
-                            <label
-                                v-for="hour in hours"
-                                :key="`pick-${hour}`"
-                                class="flex items-center gap-sm h-20 px-sm mx-xs border rounded-lg transition-all"
-                                :class="slotPickerClass(hour)"
-                            >
+                    <ul class="space-y-2 list-none p-0 m-0">
+                        <li v-for="hour in hours" :key="hour">
+                            <label class="slot-row" :class="slotPickerClass(hour)">
                                 <input
                                     type="checkbox"
-                                    class="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary shrink-0"
+                                    class="slot-row__checkbox"
                                     :checked="isHourSelected(hour)"
                                     :disabled="slotHasReservation(hour) || isHourPast(hour)"
                                     @change="toggleHour(hour)"
                                 />
-                                <span class="text-label-sm font-medium flex-1">
-                                    <template v-if="slotHasReservation(hour)">
-                                        <span class="text-slate-400">Ocupado</span>
-                                    </template>
-                                    <template v-else-if="isHourPast(hour)">
-                                        <span class="text-slate-400">Horário passado</span>
-                                    </template>
-                                    <template v-else>
-                                        {{ padHour(hour) }}:00 – {{ padHour(hour + 1) }}:00
-                                    </template>
-                                </span>
-                                <AppIcon
-                                    v-if="isHourSelected(hour)"
-                                    name="check_circle"
-                                    class="text-success-green-text"
-                                />
-                            </label>
-                        </div>
-
-                        <div class="absolute left-16 right-0 top-0 bottom-0 pl-sm pointer-events-none">
-                            <!-- Blocos ocupados -->
-                            <div
-                                v-for="block in dayBlocks"
-                                :key="block.id"
-                                class="absolute left-sm right-sm bg-primary-fixed border-l-4 border-primary rounded-r-lg shadow-sm p-sm flex flex-col z-10 cursor-pointer hover:shadow-md transition-shadow overflow-hidden pointer-events-auto"
-                                :style="{ top: `${block.top}px`, height: `${block.height}px` }"
-                                @click="selectReservation(block)"
-                            >
-                                <div class="flex justify-between items-start gap-sm min-w-0">
-                                    <h3 class="text-headline-sm font-semibold text-on-primary-fixed truncate">
-                                        {{ block.booker?.name ?? 'Reserva' }}
-                                    </h3>
+                                <div class="slot-row__body min-w-0 flex-1">
+                                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                                        <span class="text-sm font-semibold text-on-surface">
+                                            {{ padHour(hour) }}:00 – {{ padHour(hour + 1) }}:00
+                                        </span>
+                                        <span
+                                            v-if="isCurrentHour(hour)"
+                                            class="text-[10px] font-bold uppercase tracking-wide text-error bg-error-container px-1.5 py-0.5 rounded"
+                                        >
+                                            Agora
+                                        </span>
+                                        <span
+                                            v-else-if="slotHasReservation(hour)"
+                                            class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded"
+                                        >
+                                            Ocupado
+                                        </span>
+                                        <span
+                                            v-else-if="isHourPast(hour)"
+                                            class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded"
+                                        >
+                                            Passado
+                                        </span>
+                                    </div>
                                     <button
+                                        v-if="reservationForHour(hour)"
                                         type="button"
-                                        class="text-primary shrink-0 hover:bg-white/50 rounded p-0.5"
-                                        @click.stop="selectReservation(block)"
+                                        class="text-xs text-slate-500 mt-1 truncate text-left w-full hover:text-primary"
+                                        @click.stop="selectReservation(reservationForHour(hour))"
                                     >
-                                        <AppIcon name="more_vert" />
+                                        {{ reservationForHour(hour).booker?.name ?? 'Reserva' }}
+                                        · {{ formatTimeRange(reservationForHour(hour).starts_at, reservationForHour(hour).ends_at) }}
                                     </button>
                                 </div>
-                                <p v-if="companionNames(block.companions)" class="text-body-sm text-on-surface-variant mt-xs truncate">
-                                    {{ companionNames(block.companions) }}
-                                </p>
-                                <div class="mt-auto flex flex-wrap items-center gap-xs text-primary font-label-sm">
-                                    <AppIcon name="schedule" size="sm" />
-                                    {{ formatTimeRange(block.starts_at, block.ends_at) }}
-                                    <span
-                                        v-if="block.attended_at"
-                                        class="inline-flex items-center gap-0.5 text-success-green-text bg-white/80 px-1.5 py-0.5 rounded text-[11px] font-semibold"
-                                    >
-                                        <AppIcon name="check_circle" size="sm" />
-                                        Presente
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Indicador de hora atual -->
-                            <div
-                                v-if="currentTimeTop !== null"
-                                class="absolute left-0 right-0 z-20 flex items-center pointer-events-none"
-                                :style="{ top: `${currentTimeTop}px` }"
-                            >
-                                <div class="w-2 h-2 rounded-full bg-error -ml-[5px] shrink-0" />
-                                <div class="h-0.5 bg-error w-full" />
-                            </div>
-                        </div>
-                    </div>
+                            </label>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
@@ -250,7 +197,7 @@
                                 type="button"
                                 class="text-error hover:bg-error-container p-1 rounded shrink-0"
                                 title="Cancelar"
-                                @click.stop="cancelReservation(r)"
+                                @click.stop="requestCancelReservation(r)"
                             >
                                 <AppIcon name="close" size="sm" />
                             </button>
@@ -269,10 +216,41 @@
             :starts-at="modalStartsAt"
             :ends-at="modalEndsAt"
             :min-datetime="minDatetimeLocal"
+            :user-email="user?.email ?? ''"
+            :edit-reservation="editingReservation"
+            :title="editingReservation ? 'Editar reserva' : 'Nova reserva'"
             :saving="saving"
             :error="formError"
             @close="closeModal"
-            @submit="createReservation"
+            @submit="saveReservation"
+        />
+
+        <ReservationSuccessAlert
+            :open="successAlertOpen"
+            :reservation="lastCreatedReservation"
+            @acknowledge="closeSuccessAlert"
+        />
+
+        <AppActionDialog
+            :open="cancelDialogOpen"
+            variant="danger"
+            title="Cancelar reserva?"
+            :message="cancelDialogMessage"
+            confirm-label="Sim, cancelar"
+            cancel-label="Voltar"
+            @confirm="confirmCancelReservation"
+            @cancel="cancelDialogOpen = false"
+        />
+
+        <AppActionDialog
+            :open="feedbackDialog.open"
+            :variant="feedbackDialog.variant"
+            :title="feedbackDialog.title"
+            :message="feedbackDialog.message"
+            confirm-label="OK"
+            :show-cancel="false"
+            @confirm="feedbackDialog.open = false"
+            @cancel="feedbackDialog.open = false"
         />
 
         <!-- Painel detalhe / cancelar -->
@@ -288,6 +266,28 @@
                 <p class="text-body-sm text-slate-600 mb-md">
                     {{ formatTimeRange(selected.starts_at, selected.ends_at) }}
                 </p>
+                <div v-if="selected.rules" class="mb-md space-y-2">
+                    <div
+                        v-if="selected.rules.in_edit_window"
+                        class="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+                    >
+                        <p class="text-xs font-semibold text-primary">Edição disponível</p>
+                        <p class="text-lg font-bold text-primary font-mono tabular-nums">{{ formatCountdown(selected.rules.edit_seconds_remaining) }}</p>
+                    </div>
+                    <div
+                        v-if="selected.rules.cancel_countdown_visible"
+                        class="rounded-lg border px-3 py-2"
+                        :class="selected.rules.can_cancel ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-100'"
+                    >
+                        <p class="text-xs font-semibold" :class="selected.rules.can_cancel ? 'text-amber-800' : 'text-slate-600'">
+                            Prazo para cancelar ({{ selected.rules.cancel_hours_before }}h antes)
+                        </p>
+                        <p v-if="selected.rules.can_cancel" class="text-lg font-bold font-mono tabular-nums text-amber-900">
+                            {{ formatCountdown(selected.rules.cancel_seconds_remaining) }}
+                        </p>
+                        <p v-else class="text-xs text-slate-600 mt-1">{{ selected.rules.cancel_blocked_reason }}</p>
+                    </div>
+                </div>
                 <div class="text-body-sm text-slate-600 space-y-xs mb-md">
                     <p v-if="selected.course_period">
                         <span class="font-medium text-on-surface">Período:</span>
@@ -311,22 +311,32 @@
                         </li>
                     </ul>
                 </div>
-                <div class="flex gap-sm">
+                <div class="flex flex-col gap-2">
                     <button
+                        v-if="canEdit(selected)"
                         type="button"
-                        class="flex-1 h-10 border border-slate-200 rounded-lg text-secondary hover:bg-slate-50"
-                        @click="selected = null"
+                        class="w-full h-10 bg-primary text-on-primary rounded-lg font-medium hover:bg-primary-container"
+                        @click="openEditModal(selected)"
                     >
-                        Fechar
+                        Editar reserva
                     </button>
-                    <button
-                        v-if="canCancel(selected)"
-                        type="button"
-                        class="flex-1 h-10 bg-error text-on-error rounded-lg hover:opacity-90"
-                        @click="cancelReservation(selected)"
-                    >
-                        Cancelar reserva
-                    </button>
+                    <div class="flex gap-sm">
+                        <button
+                            type="button"
+                            class="flex-1 h-10 border border-slate-200 rounded-lg text-secondary hover:bg-slate-50"
+                            @click="selected = null"
+                        >
+                            Fechar
+                        </button>
+                        <button
+                            v-if="canCancel(selected)"
+                            type="button"
+                            class="flex-1 h-10 bg-error text-on-error rounded-lg hover:opacity-90"
+                            @click="requestCancelReservation(selected)"
+                        >
+                            Cancelar reserva
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -334,14 +344,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ReservationModal from '../components/ReservationModal.vue';
+import ReservationSuccessAlert from '../components/ReservationSuccessAlert.vue';
+import AppActionDialog from '../components/AppActionDialog.vue';
+import { END_HOUR, HOUR_SLOTS, START_HOUR } from '../constants/coworkingHours';
 import { api } from '../bootstrap';
-
-const START_HOUR = 8;
-const END_HOUR = 18;
-const HOUR_HEIGHT = 80;
+import { formatCountdown, refreshRulesMeta } from '../utils/reservationRules';
 
 const route = useRoute();
 const router = useRouter();
@@ -356,11 +366,17 @@ const selected = ref(null);
 const modalOpen = ref(false);
 const modalStartsAt = ref('');
 const modalEndsAt = ref('');
+const editingReservation = ref(null);
+const successAlertOpen = ref(false);
+const lastCreatedReservation = ref(null);
+const cancelDialogOpen = ref(false);
+const cancelTarget = ref(null);
+const feedbackDialog = ref({ open: false, variant: 'success', title: '', message: '' });
 
 const selectedHours = ref([]);
+let rulesTimer = null;
 
-const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-const timelineHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+const hours = HOUR_SLOTS;
 
 const formattedSelectedDay = computed(() =>
     selectedDate.value.toLocaleDateString('pt-BR', {
@@ -372,20 +388,6 @@ const formattedSelectedDay = computed(() =>
 
 const dayReservations = computed(() =>
     reservations.value.filter((r) => isSameDay(new Date(r.starts_at), selectedDate.value)),
-);
-
-const dayBlocks = computed(() =>
-    dayReservations.value.map((r) => {
-        const start = new Date(r.starts_at);
-        const end = new Date(r.ends_at);
-        const startMinutes = (start.getHours() - START_HOUR) * 60 + start.getMinutes();
-        const durationMinutes = Math.max((end - start) / 60000, 15);
-        return {
-            ...r,
-            top: (startMinutes / 60) * HOUR_HEIGHT,
-            height: Math.max((durationMinutes / 60) * HOUR_HEIGHT, 48),
-        };
-    }),
 );
 
 const upcomingList = computed(() =>
@@ -418,19 +420,6 @@ const occupancyPercent = computed(() => {
         return 0;
     }
     return Math.round((bookedSlotsCount.value / hours.length) * 100);
-});
-
-const currentTimeTop = computed(() => {
-    if (!isSameDay(selectedDate.value, new Date())) {
-        return null;
-    }
-    const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
-    if (h < START_HOUR || h >= END_HOUR) {
-        return null;
-    }
-    return ((h - START_HOUR) * 60 + m) / 60 * HOUR_HEIGHT;
 });
 
 const isAdmin = computed(() => user.value?.roles?.some((role) => role.name === 'admin') ?? false);
@@ -588,15 +577,27 @@ function companionActivity(companion) {
 }
 
 function slotHasReservation(hour) {
-    return dayReservations.value.some((r) => {
+    return reservationForHour(hour) !== null;
+}
+
+function reservationForHour(hour) {
+    const slotStart = new Date(selectedDate.value);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(selectedDate.value);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+
+    return dayReservations.value.find((r) => {
         const start = new Date(r.starts_at);
         const end = new Date(r.ends_at);
-        const slotStart = new Date(selectedDate.value);
-        slotStart.setHours(hour, 0, 0, 0);
-        const slotEnd = new Date(selectedDate.value);
-        slotEnd.setHours(hour + 1, 0, 0, 0);
         return start < slotEnd && end > slotStart;
-    });
+    }) ?? null;
+}
+
+function isCurrentHour(hour) {
+    if (!isSameDay(selectedDate.value, new Date())) {
+        return false;
+    }
+    return new Date().getHours() === hour;
 }
 
 function rangeOverlapsReservation(startHour, endHour) {
@@ -630,12 +631,15 @@ function toggleHour(hour) {
 
 function slotPickerClass(hour) {
     if (slotHasReservation(hour) || isHourPast(hour)) {
-        return 'bg-slate-100/90 border-slate-200 cursor-not-allowed opacity-70';
+        return 'slot-row--disabled';
     }
     if (isHourSelected(hour)) {
-        return 'bg-success-green-bg border-success-green cursor-pointer shadow-sm';
+        return 'slot-row--selected';
     }
-    return 'bg-white border-slate-200 hover:border-primary hover:bg-slate-50 cursor-pointer';
+    if (isCurrentHour(hour)) {
+        return 'slot-row--now';
+    }
+    return 'slot-row--available';
 }
 
 function clearSelection() {
@@ -680,6 +684,7 @@ function goToday() {
 }
 
 function openModal() {
+    editingReservation.value = null;
     const first = isSameDay(selectedDate.value, new Date())
         ? nextAvailableHour()
         : START_HOUR;
@@ -698,20 +703,81 @@ function openModal() {
     router.replace({ name: 'console', query: {} });
 }
 
+const cancelDialogMessage = computed(() => {
+    if (!cancelTarget.value) {
+        return '';
+    }
+    const r = cancelTarget.value;
+    return `Deseja cancelar a reserva de ${formatTimeRange(r.starts_at, r.ends_at)}?\n\nEsta ação não pode ser desfeita.`;
+});
+
 function closeModal() {
     modalOpen.value = false;
+    editingReservation.value = null;
     formError.value = '';
+}
+
+function closeSuccessAlert() {
+    successAlertOpen.value = false;
+    lastCreatedReservation.value = null;
+}
+
+function openEditModal(r) {
+    if (!canEdit(r)) {
+        return;
+    }
+    editingReservation.value = r;
+    selected.value = null;
+    formError.value = '';
+    modalOpen.value = true;
+}
+
+function showFeedback(variant, title, message) {
+    feedbackDialog.value = { open: true, variant, title, message };
+}
+
+function normalizeReservations(list) {
+    return list.map((r) => ({
+        ...r,
+        rules: r.rules ? refreshRulesMeta(r.rules) : r.rules,
+    }));
+}
+
+function tickRules() {
+    reservations.value = normalizeReservations(reservations.value);
+    if (selected.value) {
+        const updated = reservations.value.find((r) => r.id === selected.value.id);
+        if (updated) {
+            selected.value = updated;
+        }
+    }
+    if (lastCreatedReservation.value?.rules) {
+        lastCreatedReservation.value = {
+            ...lastCreatedReservation.value,
+            rules: refreshRulesMeta(lastCreatedReservation.value.rules),
+        };
+    }
 }
 
 function selectReservation(r) {
     selected.value = r;
 }
 
+function canEdit(r) {
+    if (!user.value || r.user_id !== user.value.id) {
+        return false;
+    }
+    return Boolean(r.rules?.can_edit);
+}
+
 function canCancel(r) {
     if (!user.value) {
         return false;
     }
-    return r.user_id === user.value.id || isAdmin.value;
+    if (r.user_id !== user.value.id && !isAdmin.value) {
+        return false;
+    }
+    return Boolean(r.rules?.can_cancel);
 }
 
 async function loadMe() {
@@ -732,12 +798,24 @@ async function loadReservations() {
                 to: to.toISOString(),
             },
         });
-        reservations.value = data;
+        reservations.value = normalizeReservations(data.data ?? data);
     } catch (e) {
         formError.value = e.response?.data?.message ?? 'Falha ao carregar reservas.';
     } finally {
         loadingGrid.value = false;
     }
+}
+
+async function saveReservation(payload) {
+    if (payload.validationError) {
+        formError.value = payload.validationError;
+        return;
+    }
+    if (payload.reservationId) {
+        await updateReservation(payload);
+        return;
+    }
+    await createReservation(payload);
 }
 
 async function createReservation(payload) {
@@ -746,7 +824,19 @@ async function createReservation(payload) {
         return;
     }
 
-    const { startsAt, endsAt, coursePeriod, activity, companions } = payload;
+    const {
+        startsAt,
+        endsAt,
+        contactEmail,
+        phone,
+        institution,
+        spaceType,
+        computers,
+        termsAccepted,
+        coursePeriod,
+        activity,
+        companions,
+    } = payload;
     const start = parseLocalDatetime(startsAt);
     const end = parseLocalDatetime(endsAt);
     if (!start || !end) {
@@ -769,13 +859,25 @@ async function createReservation(payload) {
         formError.value = 'O horário de término deve ser depois do início.';
         return;
     }
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+    if (startMinutes < START_HOUR * 60 || endMinutes > END_HOUR * 60) {
+        formError.value = `As reservas são permitidas apenas entre ${padHour(START_HOUR)}:00 e ${padHour(END_HOUR)}:00.`;
+        return;
+    }
 
     saving.value = true;
     formError.value = '';
     try {
-        await api.post('/api/reservations', {
+        const { data } = await api.post('/api/reservations', {
             starts_at: start.toISOString(),
             ends_at: end.toISOString(),
+            contact_email: contactEmail,
+            phone,
+            institution,
+            space_type: spaceType,
+            computers,
+            terms_accepted: termsAccepted,
             course_period: coursePeriod,
             activity,
             companions,
@@ -783,6 +885,8 @@ async function createReservation(payload) {
         closeModal();
         selected.value = null;
         await loadReservations();
+        lastCreatedReservation.value = data.data ?? data;
+        successAlertOpen.value = true;
     } catch (e) {
         const bag = e.response?.data?.errors;
         formError.value = bag
@@ -793,10 +897,68 @@ async function createReservation(payload) {
     }
 }
 
-async function cancelReservation(r) {
-    if (!confirm('Deseja cancelar esta reserva?')) {
+async function updateReservation(payload) {
+    const {
+        reservationId,
+        startsAt,
+        endsAt,
+        contactEmail,
+        phone,
+        institution,
+        spaceType,
+        computers,
+        termsAccepted,
+        coursePeriod,
+        activity,
+        companions,
+    } = payload;
+
+    saving.value = true;
+    formError.value = '';
+    try {
+        const start = parseLocalDatetime(startsAt);
+        const end = parseLocalDatetime(endsAt);
+        await api.put(`/api/reservations/${reservationId}`, {
+            starts_at: start.toISOString(),
+            ends_at: end.toISOString(),
+            contact_email: contactEmail,
+            phone,
+            institution,
+            space_type: spaceType,
+            computers,
+            terms_accepted: termsAccepted ?? true,
+            course_period: coursePeriod,
+            activity,
+            companions,
+        });
+        closeModal();
+        showFeedback('success', 'Reserva atualizada', 'Suas alterações foram salvas com sucesso.');
+        await loadReservations();
+    } catch (e) {
+        const bag = e.response?.data?.errors;
+        formError.value = bag
+            ? Object.values(bag).flat().join(' ')
+            : (e.response?.data?.message ?? 'Não foi possível atualizar a reserva.');
+    } finally {
+        saving.value = false;
+    }
+}
+
+function requestCancelReservation(r) {
+    if (!canCancel(r)) {
+        showFeedback('info', 'Cancelamento indisponível', r.rules?.cancel_blocked_reason ?? 'Não é possível cancelar esta reserva.');
         return;
     }
+    cancelTarget.value = r;
+    cancelDialogOpen.value = true;
+}
+
+async function confirmCancelReservation() {
+    const r = cancelTarget.value;
+    if (!r) {
+        return;
+    }
+    cancelDialogOpen.value = false;
     try {
         if (isAdmin.value && r.user_id !== user.value?.id) {
             await api.delete(`/api/admin/reservations/${r.id}`);
@@ -804,9 +966,14 @@ async function cancelReservation(r) {
             await api.delete(`/api/reservations/${r.id}`);
         }
         selected.value = null;
+        cancelTarget.value = null;
+        showFeedback('success', 'Reserva cancelada', 'A reserva foi cancelada com sucesso.');
         await loadReservations();
     } catch (e) {
-        formError.value = e.response?.data?.message ?? 'Falha ao cancelar.';
+        const msg = e.response?.data?.errors?.reservation?.[0]
+            ?? e.response?.data?.message
+            ?? 'Falha ao cancelar.';
+        showFeedback('info', 'Não foi possível cancelar', msg);
     }
 }
 
@@ -822,13 +989,55 @@ watch(
 onMounted(async () => {
     await loadMe();
     await loadReservations();
+    rulesTimer = setInterval(tickRules, 1000);
     if (route.query.action === 'new') {
         openModal();
     }
 });
 
+onUnmounted(() => {
+    if (rulesTimer) {
+        clearInterval(rulesTimer);
+    }
+});
+
 </script>
 
+<style scoped>
+.selection-banner {
+    @apply flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-primary/25 bg-white px-4 py-4 shadow-sm;
+}
 
+.slot-row {
+    @apply flex items-start gap-3 w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white transition-all;
+}
 
+.slot-row__checkbox {
+    @apply mt-0.5 w-[18px] h-[18px] rounded border-slate-300 text-primary focus:ring-2 focus:ring-primary/30 shrink-0 cursor-pointer disabled:cursor-not-allowed;
+}
+
+.slot-row__body {
+    @apply pt-0.5;
+}
+
+.slot-row--available {
+    @apply hover:border-primary/40 hover:bg-slate-50 cursor-pointer;
+}
+
+.slot-row--selected {
+    @apply border-primary bg-primary/5 ring-2 ring-primary/15 cursor-pointer;
+}
+
+.slot-row--now {
+    @apply border-slate-300 bg-slate-50 cursor-pointer;
+}
+
+.slot-row--disabled {
+    @apply bg-slate-100 border-slate-200 opacity-80 cursor-not-allowed;
+}
+
+.slot-row--selected .slot-row__checkbox {
+    @apply border-primary;
+}
+</style>
 

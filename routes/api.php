@@ -36,6 +36,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         ->middleware('can:create,App\Models\Reservation')
         ->name('api.reservations.store');
 
+    Route::put('/reservations/{reservation}', [ReservationController::class, 'update'])
+        ->middleware('can:updateAsOwner,reservation')
+        ->name('api.reservations.update');
+
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy'])
         ->middleware('can:deleteAsOwner,reservation')
         ->name('api.reservations.destroy');

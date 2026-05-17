@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Reservation\CreateReservationAction;
+use App\Actions\Reservation\UpdateReservationAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
+use App\Http\Requests\UpdateReservationRequest;
+use App\Http\Resources\ReservationResource;
 use App\Models\Reservation;
+use App\Services\ReservationRulesService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class ReservationController extends Controller
 {
@@ -27,7 +32,7 @@ class ReservationController extends Controller
             ->orderBy('starts_at')
             ->get();
 
-        return response()->json($reservations);
+        return ReservationResource::collection($reservations)->response();
     }
 
     public function store(StoreReservationRequest $request, CreateReservationAction $action): JsonResponse
@@ -43,13 +48,55 @@ class ReservationController extends Controller
             (int) $request->validated('course_period'),
             $request->validated('activity'),
             $companions,
+            $request->validated('contact_email'),
+            $request->validated('phone'),
+            $request->validated('institution'),
+            $request->validated('space_type'),
+            $request->validated('computers') ?: null,
         );
 
-        return response()->json($reservation->load(['booker:id,name,email']), JsonResponse::HTTP_CREATED);
+        return (new ReservationResource($reservation->load(['booker:id,name,email'])))
+            ->response()
+            ->setStatusCode(JsonResponse::HTTP_CREATED);
     }
 
-    public function destroy(Reservation $reservation): Response
+    public function update(
+        UpdateReservationRequest $request,
+        Reservation $reservation,
+        UpdateReservationAction $action,
+    ): JsonResponse {
+        $this->authorize('updateAsOwner', $reservation);
+
+        $startsAt = CarbonImmutable::parse($request->validated('starts_at'));
+        $endsAt = CarbonImmutable::parse($request->validated('ends_at'));
+
+        $reservation = $action->execute(
+            $reservation,
+            $startsAt,
+            $endsAt,
+            (int) $request->validated('course_period'),
+            $request->validated('activity'),
+            $request->validated('companions') ?? [],
+            $request->validated('contact_email'),
+            $request->validated('phone'),
+            $request->validated('institution'),
+            $request->validated('space_type'),
+            $request->validated('computers') ?: null,
+        );
+
+        return (new ReservationResource($reservation))->response();
+    }
+
+    public function destroy(Request $request, Reservation $reservation, ReservationRulesService $rules): Response
     {
+        $this->authorize('deleteAsOwner', $reservation);
+
+        if (! $rules->canCancel($reservation, $request->user())) {
+            throw ValidationException::withMessages([
+                'reservation' => [$rules->cancelBlockedReason($reservation, $request->user()) ?? 'Não é possível cancelar esta reserva.'],
+            ]);
+        }
+
         $reservation->delete();
 
         return response()->noContent();

@@ -2,8 +2,9 @@
     <!-- Layout autenticado (dashboard) -->
     <div
         v-if="isAuthenticated && !isGuestRoute"
-        class="bg-slate-50 text-on-surface h-screen overflow-hidden flex flex-col md:flex-row"
+        class="relative bg-slate-50 text-on-surface h-screen overflow-hidden flex flex-col md:flex-row"
     >
+        <AppBrandWatermark />
         <!-- Mobile TopNavBar -->
         <header class="md:hidden flex justify-between items-center w-full px-margin-mobile h-16 sticky top-0 z-50 bg-surface/90 backdrop-blur-md shadow-sm shrink-0">
             <div class="text-headline-md font-bold text-primary">Coworking UEMASUL</div>
@@ -27,7 +28,7 @@
         </header>
 
         <!-- SideNavBar (Desktop) -->
-        <nav class="hidden md:flex flex-col h-screen p-md fixed left-0 top-0 z-40 bg-surface-container-low w-64 border-r border-outline-variant">
+        <nav class="hidden md:flex flex-col h-screen p-md fixed left-0 top-0 z-40 bg-surface-container-low/95 backdrop-blur-sm w-64 border-r border-outline-variant">
             <div class="flex items-center gap-sm mb-lg px-sm">
                 <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary">
                     <AppIcon name="calendar_month" size="md" />
@@ -103,7 +104,7 @@
         </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-full md:ml-64 bg-slate-50 overflow-hidden min-h-0">
+        <main class="relative z-10 flex-1 flex flex-col h-full md:ml-64 bg-transparent overflow-hidden min-h-0">
             <header class="hidden md:flex justify-between items-center w-full px-margin-desktop h-16 sticky top-0 z-30 bg-surface/90 backdrop-blur-md shadow-sm border-b border-outline-variant shrink-0">
                 <div class="text-headline-md font-bold text-primary">Coworking UEMASUL</div>
                 <div class="flex items-center gap-lg">
@@ -132,14 +133,14 @@
                 </div>
             </header>
 
-            <div class="flex-1 overflow-hidden min-h-0">
+            <div class="relative flex-1 overflow-hidden min-h-0">
                 <RouterView />
             </div>
         </main>
     </div>
 
     <!-- Layout convidado (login / registro) -->
-    <div v-else class="min-h-screen bg-slate-50 flex flex-col">
+    <div v-else class="relative min-h-screen bg-slate-50 flex flex-col">
         <RouterView />
     </div>
 </template>
@@ -147,6 +148,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import AppBrandWatermark from './components/AppBrandWatermark.vue';
 import { api, applyAuthToken, getStoredToken } from './bootstrap';
 
 const router = useRouter();

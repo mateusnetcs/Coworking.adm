@@ -58,6 +58,11 @@ class AdminReservationController extends Controller
             (int) $request->validated('course_period'),
             $request->validated('activity'),
             $request->validated('companions') ?? [],
+            $request->validated('contact_email'),
+            $request->validated('phone'),
+            $request->validated('institution'),
+            $request->validated('space_type'),
+            $request->validated('computers') ?: null,
         );
 
         return response()->json(

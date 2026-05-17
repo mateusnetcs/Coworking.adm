@@ -18,27 +18,35 @@ class CreateReservationAction
         int $coursePeriod,
         string $activity,
         array $companions,
+        string $contactEmail,
+        string $phone,
+        string $institution,
+        string $spaceType,
+        ?array $computers,
     ): Reservation {
         if ($startsAt->greaterThanOrEqualTo($endsAt)) {
             throw ValidationException::withMessages([
-                'ends_at' => ['The end time must be after the start time.'],
+                'ends_at' => ['O horário de término deve ser depois do início.'],
             ]);
         }
 
         try {
-            return DB::transaction(function () use ($booker, $startsAt, $endsAt, $coursePeriod, $activity, $companions): Reservation {
+            return DB::transaction(function () use (
+                $booker,
+                $startsAt,
+                $endsAt,
+                $coursePeriod,
+                $activity,
+                $companions,
+                $contactEmail,
+                $phone,
+                $institution,
+                $spaceType,
+                $computers,
+            ): Reservation {
                 $this->acquireCoworkingLock();
 
-                $overlapExists = Reservation::query()
-                    ->where('starts_at', '<', $endsAt)
-                    ->where('ends_at', '>', $startsAt)
-                    ->exists();
-
-                if ($overlapExists) {
-                    throw ValidationException::withMessages([
-                        'starts_at' => ['This interval overlaps an existing reservation.'],
-                    ]);
-                }
+                $this->assertNoResourceConflict($startsAt, $endsAt, $spaceType, $computers);
 
                 return Reservation::query()->create([
                     'user_id' => $booker->id,
@@ -46,6 +54,12 @@ class CreateReservationAction
                     'ends_at' => $endsAt,
                     'course_period' => $coursePeriod,
                     'activity' => $activity,
+                    'contact_email' => $contactEmail,
+                    'phone' => $phone,
+                    'institution' => $institution,
+                    'space_type' => $spaceType,
+                    'computers' => $computers,
+                    'terms_accepted_at' => now(),
                     'companions' => $companions,
                 ]);
             });
@@ -54,11 +68,54 @@ class CreateReservationAction
 
             if ($sqlState === '23P01') {
                 throw ValidationException::withMessages([
-                    'starts_at' => ['This interval overlaps an existing reservation.'],
+                    'starts_at' => ['Este horário conflita com outra reserva do mesmo recurso.'],
                 ]);
             }
 
             throw $exception;
+        }
+    }
+
+    public function assertNoResourceConflict(
+        CarbonImmutable $startsAt,
+        CarbonImmutable $endsAt,
+        string $spaceType,
+        ?array $computers,
+        ?int $excludeReservationId = null,
+    ): void {
+        if (in_array($spaceType, [Reservation::SPACE_MEETING_ROOM, Reservation::SPACE_BOTH], true)) {
+            $meetingTaken = Reservation::query()
+                ->when($excludeReservationId, fn ($q) => $q->where('id', '!=', $excludeReservationId))
+                ->whereIn('space_type', [Reservation::SPACE_MEETING_ROOM, Reservation::SPACE_BOTH])
+                ->where('starts_at', '<', $endsAt)
+                ->where('ends_at', '>', $startsAt)
+                ->exists();
+
+            if ($meetingTaken) {
+                throw ValidationException::withMessages([
+                    'space_type' => ['A sala de reunião já está reservada neste horário.'],
+                ]);
+            }
+        }
+
+        if (! in_array($spaceType, [Reservation::SPACE_COMPUTER, Reservation::SPACE_BOTH], true)) {
+            return;
+        }
+
+        foreach ($computers ?? [] as $computerId) {
+            $computerTaken = Reservation::query()
+                ->when($excludeReservationId, fn ($q) => $q->where('id', '!=', $excludeReservationId))
+                ->whereIn('space_type', [Reservation::SPACE_COMPUTER, Reservation::SPACE_BOTH])
+                ->where('starts_at', '<', $endsAt)
+                ->where('ends_at', '>', $startsAt)
+                ->whereJsonContains('computers', (int) $computerId)
+                ->exists();
+
+            if ($computerTaken) {
+                throw ValidationException::withMessages([
+                    'computers' => ["O computador {$computerId} já está reservado neste horário."],
+                ]);
+            }
         }
     }
 

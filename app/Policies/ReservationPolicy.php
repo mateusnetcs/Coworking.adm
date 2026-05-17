@@ -13,6 +13,11 @@ class ReservationPolicy
         return $user->roles()->whereIn('name', [Role::STUDENT, Role::ADMIN])->exists();
     }
 
+    public function updateAsOwner(User $user, Reservation $reservation): bool
+    {
+        return $user->id === $reservation->user_id;
+    }
+
     public function deleteAsOwner(User $user, Reservation $reservation): bool
     {
         return $user->id === $reservation->user_id;

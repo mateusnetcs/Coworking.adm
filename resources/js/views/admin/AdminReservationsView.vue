@@ -61,6 +61,8 @@
                             <tr>
                                 <th class="px-md py-sm font-semibold">Data / horário</th>
                                 <th class="px-md py-sm font-semibold">Usuário</th>
+                                <th class="px-md py-sm font-semibold">Espaço</th>
+                                <th class="px-md py-sm font-semibold">Contato</th>
                                 <th class="px-md py-sm font-semibold">Período</th>
                                 <th class="px-md py-sm font-semibold">Atividade</th>
                                 <th class="px-md py-sm font-semibold">Presença</th>
@@ -82,6 +84,29 @@
                                 <td class="px-md py-sm">
                                     <div class="font-medium text-on-surface">{{ r.booker?.name ?? '—' }}</div>
                                     <div class="text-label-sm text-slate-500">{{ r.booker?.email }}</div>
+                                </td>
+                                <td class="px-md py-sm max-w-[180px]">
+                                    <div class="font-medium">{{ formatSpace(r) }}</div>
+                                    <div v-if="r.institution" class="text-label-sm text-slate-500">{{ r.institution }}</div>
+                                </td>
+                                <td class="px-md py-sm">
+                                    <div class="text-label-sm">{{ r.contact_email }}</div>
+                                    <div v-if="r.phone" class="mt-1 flex flex-wrap items-center gap-2">
+                                        <span class="text-label-sm text-slate-500">{{ formatPhoneDisplay(r.phone) }}</span>
+                                        <a
+                                            v-if="whatsappLink(r.phone)"
+                                            :href="whatsappLink(r.phone)"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-label-sm font-semibold bg-[#25D366] text-white hover:bg-[#1da851] transition-colors shrink-0"
+                                            title="Abrir conversa no WhatsApp"
+                                        >
+                                            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                            </svg>
+                                            WhatsApp
+                                        </a>
+                                    </div>
                                 </td>
                                 <td class="px-md py-sm">{{ r.course_period }}º</td>
                                 <td class="px-md py-sm max-w-[200px] truncate" :title="r.activity">{{ r.activity }}</td>
@@ -110,7 +135,7 @@
                                         <button
                                             type="button"
                                             class="h-8 px-sm rounded-lg text-label-sm border border-error text-error hover:bg-error-container"
-                                            @click="cancelReservation(r)"
+                                            @click="requestCancelReservation(r)"
                                         >
                                             Cancelar
                                         </button>
@@ -136,13 +161,37 @@
             @close="closeModal"
             @submit="createReservation"
         />
+
+        <AppActionDialog
+            :open="cancelDialogOpen"
+            variant="danger"
+            title="Cancelar reserva?"
+            :message="cancelDialogMessage"
+            confirm-label="Sim, cancelar"
+            cancel-label="Voltar"
+            @confirm="confirmCancelReservation"
+            @cancel="cancelDialogOpen = false"
+        />
+
+        <AppActionDialog
+            :open="feedbackDialog.open"
+            :variant="feedbackDialog.variant"
+            :title="feedbackDialog.title"
+            :message="feedbackDialog.message"
+            confirm-label="OK"
+            :show-cancel="false"
+            @confirm="feedbackDialog.open = false"
+            @cancel="feedbackDialog.open = false"
+        />
     </section>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import ReservationModal from '../../components/ReservationModal.vue';
+import AppActionDialog from '../../components/AppActionDialog.vue';
 import { api } from '../../bootstrap';
+import { formatBrazilPhoneDisplay, whatsappUrl } from '../../utils/phone';
 
 const users = ref([]);
 const reservations = ref([]);
@@ -151,6 +200,9 @@ const saving = ref(false);
 const error = ref('');
 const formError = ref('');
 const modalOpen = ref(false);
+const cancelDialogOpen = ref(false);
+const cancelTarget = ref(null);
+const feedbackDialog = ref({ open: false, variant: 'success', title: '', message: '' });
 const modalStartsAt = ref('');
 const modalEndsAt = ref('');
 
@@ -185,6 +237,28 @@ function formatDate(iso) {
         day: 'numeric',
         month: 'short',
     });
+}
+
+function formatSpace(r) {
+    const labels = {
+        computer: 'Computador',
+        meeting_room: 'Sala de reunião',
+        both: 'Sala + computador(es)',
+    };
+    const base = labels[r.space_type] ?? r.space_type ?? '—';
+    if (r.computers?.length) {
+        const pcs = [...r.computers].sort((a, b) => a - b).map((n) => `PC ${n}`).join(', ');
+        return r.space_type === 'computer' ? pcs : `${base} (${pcs})`;
+    }
+    return base;
+}
+
+function formatPhoneDisplay(phone) {
+    return formatBrazilPhoneDisplay(phone);
+}
+
+function whatsappLink(phone) {
+    return whatsappUrl(phone);
 }
 
 function formatTimeRange(start, end) {
@@ -259,6 +333,12 @@ async function createReservation(payload) {
             user_id: payload.userId,
             starts_at: start.toISOString(),
             ends_at: end.toISOString(),
+            contact_email: payload.contactEmail,
+            phone: payload.phone,
+            institution: payload.institution,
+            space_type: payload.spaceType,
+            computers: payload.computers,
+            terms_accepted: payload.termsAccepted,
             course_period: payload.coursePeriod,
             activity: payload.activity,
             companions: payload.companions,
@@ -289,15 +369,42 @@ async function toggleAttendance(r) {
     }
 }
 
-async function cancelReservation(r) {
-    if (!confirm(`Cancelar reserva de ${r.booker?.name ?? 'usuário'}?`)) {
+const cancelDialogMessage = computed(() => {
+    if (!cancelTarget.value) {
+        return '';
+    }
+    const name = cancelTarget.value.booker?.name ?? 'usuário';
+    return `Deseja cancelar a reserva de ${name}?\n\nEsta ação não pode ser desfeita.`;
+});
+
+function requestCancelReservation(r) {
+    cancelTarget.value = r;
+    cancelDialogOpen.value = true;
+}
+
+async function confirmCancelReservation() {
+    const r = cancelTarget.value;
+    if (!r) {
         return;
     }
+    cancelDialogOpen.value = false;
     try {
         await api.delete(`/api/admin/reservations/${r.id}`);
         reservations.value = reservations.value.filter((x) => x.id !== r.id);
+        cancelTarget.value = null;
+        feedbackDialog.value = {
+            open: true,
+            variant: 'success',
+            title: 'Reserva cancelada',
+            message: 'A reserva foi cancelada com sucesso.',
+        };
     } catch (e) {
-        error.value = e.response?.data?.message ?? 'Falha ao cancelar reserva.';
+        feedbackDialog.value = {
+            open: true,
+            variant: 'info',
+            title: 'Não foi possível cancelar',
+            message: e.response?.data?.message ?? 'Falha ao cancelar reserva.',
+        };
     }
 }
 
