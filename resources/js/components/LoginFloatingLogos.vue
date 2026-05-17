@@ -1,5 +1,9 @@
 <template>
-    <div class="login-floating-logos" aria-hidden="true">
+    <div
+        class="login-floating-logos"
+        aria-hidden="true"
+        style="position: fixed; inset: 0; z-index: 5; overflow: hidden; pointer-events: none;"
+    >
         <div
             v-for="logo in logos"
             :key="logo.id"
@@ -28,8 +32,8 @@ const offsets = ref({});
 
 function buildLogos() {
     const items = [];
-    const cols = 16;
-    const rows = 11;
+    const cols = 12;
+    const rows = 8;
     let id = 0;
 
     for (let row = 0; row < rows; row += 1) {
@@ -110,11 +114,14 @@ function orbStyle(logo) {
     const o = offsets.value[logo.id] ?? { x: 0, y: 0, glow: 0 };
 
     return {
+        position: 'absolute',
         left: `${logo.left}%`,
         top: `${logo.top}%`,
         width: `${logo.size}px`,
+        height: `${logo.size}px`,
         transform: `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px))`,
         zIndex: o.glow > 0.08 ? Math.round(10 + o.glow * 30) : 1,
+        pointerEvents: 'none',
     };
 }
 
@@ -126,6 +133,10 @@ function imgStyle(logo) {
         '--delay': `${logo.delay}s`,
         '--dx': `${logo.dx * logo.signX}px`,
         '--dy': `${logo.dy * logo.signY}px`,
+        width: `${logo.size}px`,
+        height: 'auto',
+        maxWidth: `${logo.size}px`,
+        display: 'block',
         opacity: 0.13 + o.glow * 0.6,
         filter: `brightness(${1 + o.glow * 0.95}) saturate(${1 + o.glow * 0.35})`,
     };

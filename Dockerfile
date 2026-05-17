@@ -30,8 +30,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=vendor /app/vendor ./vendor
-COPY --from=frontend /app/public/build ./public/build
 COPY . .
+COPY --from=frontend /app/public/build ./public/build
 
 RUN mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache

@@ -6,6 +6,13 @@ cd /var/www/html
 mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
+rm -f public/hot
+
+if [ ! -f public/build/manifest.json ]; then
+    echo "ERRO: build do frontend ausente (public/build/manifest.json). Refaca o deploy com rebuild."
+    exit 1
+fi
+
 if [ -z "$APP_KEY" ]; then
     echo "ERRO: defina APP_KEY nas variáveis de ambiente do Coolify (php artisan key:generate --show)."
     exit 1
