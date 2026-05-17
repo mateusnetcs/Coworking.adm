@@ -11,12 +11,12 @@ RUN npm run build
 
 FROM composer:2 AS vendor
 WORKDIR /app
-COPY composer.json ./
+COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-progress
 COPY . .
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM php:8.3-apache-bookworm
+FROM php:8.4-apache-bookworm
 WORKDIR /var/www/html
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
