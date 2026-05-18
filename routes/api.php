@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\BookingCalendarController;
+use App\Http\Controllers\Api\Admin\AdminBookingCalendarController;
 use App\Http\Controllers\Api\Admin\AdminReservationController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Auth\LoginController;
@@ -63,6 +64,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
             ->name('api.admin.reservations.attendance');
         Route::delete('/reservations/{reservation}', [AdminReservationController::class, 'destroy'])
             ->name('api.admin.reservations.destroy');
+
+        Route::get('/booking-calendar/day-summary', [AdminBookingCalendarController::class, 'daySummary'])
+            ->name('api.admin.booking-calendar.day-summary');
+        Route::post('/booking-calendar/close-day', [AdminBookingCalendarController::class, 'closeDay'])
+            ->name('api.admin.booking-calendar.close-day');
+        Route::delete('/booking-calendar/close-day', [AdminBookingCalendarController::class, 'reopenDay'])
+            ->name('api.admin.booking-calendar.reopen-day');
 
         Route::get('/users', [AdminUserController::class, 'index'])
             ->name('api.admin.users.index');

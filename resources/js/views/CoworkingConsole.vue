@@ -28,13 +28,30 @@
                             <AppIcon name="chevron_right" />
                         </button>
                     </div>
-                    <div class="flex gap-sm">
+                    <div class="flex flex-wrap gap-sm justify-end">
                         <button
                             type="button"
                             class="px-md h-10 bg-primary text-on-primary rounded-lg font-label-md flex items-center gap-xs hover:bg-primary-container transition-colors"
                             @click="goToday"
                         >
                             Hoje
+                        </button>
+                        <button
+                            v-if="isAdmin && dayClosure?.reopenable"
+                            type="button"
+                            class="px-md h-10 border border-primary text-primary rounded-lg font-label-md hover:bg-primary/5 transition-colors flex items-center gap-xs"
+                            @click="requestReopenDay"
+                        >
+                            Reabrir dia
+                        </button>
+                        <button
+                            v-else-if="isAdmin && !dayClosure"
+                            type="button"
+                            class="px-md h-10 border border-error text-error rounded-lg font-label-md hover:bg-error-container transition-colors flex items-center gap-xs"
+                            @click="openCloseDayDialog"
+                        >
+                            <AppIcon name="close" size="sm" />
+                            Cancelar dia
                         </button>
                         <button
                             type="button"
@@ -57,9 +74,17 @@
                         <p class="text-body-sm font-semibold text-amber-900">
                             {{ dayClosure.message }}
                         </p>
-                        <p v-if="dayClosure.type === 'holiday' && dayClosure.label" class="text-label-sm text-amber-800/80 mt-1">
+                        <p v-if="dayClosure.label" class="text-label-sm text-amber-800/80 mt-1">
                             Não é possível criar ou alterar reservas neste dia.
                         </p>
+                        <button
+                            v-if="isAdmin && dayClosure.reopenable"
+                            type="button"
+                            class="mt-3 text-label-sm font-semibold text-primary hover:underline"
+                            @click="requestReopenDay"
+                        >
+                            Reabrir dia para reservas
+                        </button>
                     </div>
 
                     <p v-else class="text-label-sm text-slate-500 flex items-center gap-1 shrink-0">
@@ -187,6 +212,21 @@
 
                 <!-- Próximos -->
                 <div class="bg-white rounded-xl shadow-level-1 border border-slate-200 p-lg flex-1 min-h-[200px]">
+                    <div
+                        v-if="isAdmin && dayReservations.length && !dayClosure"
+                        class="mb-md rounded-lg border border-error/30 bg-error-container/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <p class="text-label-sm text-error font-medium">
+                            {{ dayReservations.length }} reserva(s) neste dia
+                        </p>
+                        <button
+                            type="button"
+                            class="h-8 px-3 rounded-lg text-label-sm font-semibold border border-error text-error hover:bg-error-container"
+                            @click="openCloseDayDialog"
+                        >
+                            Cancelar dia inteiro
+                        </button>
+                    </div>
                     <div class="flex justify-between items-center mb-md">
                         <h2 class="text-headline-sm font-semibold text-on-surface">Próximos</h2>
                         <button
@@ -266,6 +306,47 @@
             cancel-label="Voltar"
             @confirm="confirmCancelReservation"
             @cancel="cancelDialogOpen = false"
+        />
+
+        <AppActionDialog
+            :open="closeDayDialogOpen"
+            variant="danger"
+            title="Cancelar dia de reservas?"
+            :message="closeDayDialogMessage"
+            confirm-label="Sim, cancelar dia"
+            cancel-label="Voltar"
+            @confirm="confirmCloseDay"
+            @cancel="closeDayDialogOpen = false"
+        >
+            <label class="block mt-4">
+                <span class="text-label-sm text-slate-600">Motivo (ex.: ponto facultativo, evento)</span>
+                <input
+                    v-model="closeDayReason"
+                    type="text"
+                    maxlength="120"
+                    class="mt-1 w-full h-10 px-3 border border-slate-200 rounded-lg text-sm"
+                    placeholder="Ponto facultativo"
+                />
+            </label>
+            <label class="flex items-center gap-2 mt-3 text-sm text-slate-700">
+                <input v-model="closeDayCancelReservations" type="checkbox" class="rounded border-slate-300" />
+                Cancelar todas as reservas existentes ({{ dayReservations.length }})
+            </label>
+            <label class="flex items-center gap-2 mt-2 text-sm text-slate-700">
+                <input v-model="closeDayBlockNew" type="checkbox" class="rounded border-slate-300" />
+                Bloquear novas reservas neste dia
+            </label>
+        </AppActionDialog>
+
+        <AppActionDialog
+            :open="reopenDayDialogOpen"
+            variant="confirm"
+            title="Reabrir dia?"
+            message="O dia voltará a aceitar novas reservas. Reservas já canceladas não serão restauradas."
+            confirm-label="Reabrir dia"
+            cancel-label="Voltar"
+            @confirm="confirmReopenDay"
+            @cancel="reopenDayDialogOpen = false"
         />
 
         <AppActionDialog
@@ -383,7 +464,7 @@ import ReservationSuccessAlert from '../components/ReservationSuccessAlert.vue';
 import AppActionDialog from '../components/AppActionDialog.vue';
 import { END_HOUR, HOUR_SLOTS, START_HOUR } from '../constants/coworkingHours';
 import { api } from '../bootstrap';
-import { fetchDayBookingStatus } from '../utils/bookingCalendar';
+import { closeBookingDay, fetchDayBookingStatus, reopenBookingDay } from '../utils/bookingCalendar';
 import { formatCountdown, refreshRulesMeta } from '../utils/reservationRules';
 
 const route = useRoute();
@@ -405,6 +486,11 @@ const successAlertOpen = ref(false);
 const lastCreatedReservation = ref(null);
 const cancelDialogOpen = ref(false);
 const cancelTarget = ref(null);
+const closeDayDialogOpen = ref(false);
+const closeDayReason = ref('Ponto facultativo');
+const closeDayCancelReservations = ref(true);
+const closeDayBlockNew = ref(true);
+const reopenDayDialogOpen = ref(false);
 const feedbackDialog = ref({ open: false, variant: 'success', title: '', message: '' });
 
 const selectedHours = ref([]);
@@ -844,6 +930,19 @@ async function loadMe() {
     user.value = data;
 }
 
+const closeDayDialogMessage = computed(() => {
+    const dateLabel = selectedDate.value.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+    });
+    const count = dayReservations.value.length;
+    if (count === 0) {
+        return `Fechar ${dateLabel} para reservas?\n\nNão há reservas agendadas, mas o dia ficará bloqueado para novos agendamentos.`;
+    }
+    return `Cancelar todas as reservas de ${dateLabel}?\n\n${count} reserva(s) serão removidas. Use para eventos ou ponto facultativo.`;
+});
+
 function applyDayClosureStatus(status) {
     dayClosure.value = status.bookable
         ? null
@@ -851,6 +950,7 @@ function applyDayClosureStatus(status) {
             message: status.message,
             type: status.type,
             label: status.label,
+            reopenable: Boolean(status.reopenable),
         };
 }
 
@@ -1028,6 +1128,71 @@ function requestCancelReservation(r) {
     }
     cancelTarget.value = r;
     cancelDialogOpen.value = true;
+}
+
+function openCloseDayDialog() {
+    closeDayReason.value = 'Ponto facultativo';
+    closeDayCancelReservations.value = dayReservations.value.length > 0;
+    closeDayBlockNew.value = true;
+    closeDayDialogOpen.value = true;
+}
+
+function requestReopenDay() {
+    reopenDayDialogOpen.value = true;
+}
+
+async function confirmCloseDay() {
+    const reason = closeDayReason.value.trim();
+    if (reason.length < 3) {
+        showFeedback('info', 'Informe o motivo', 'Descreva o motivo do fechamento (mínimo 3 caracteres).');
+        return;
+    }
+    closeDayDialogOpen.value = false;
+    try {
+        const result = await closeBookingDay(selectedDate.value, {
+            reason,
+            cancelReservations: closeDayCancelReservations.value,
+            blockNewReservations: closeDayBlockNew.value,
+        });
+        if (result.day) {
+            applyDayClosureStatus(result.day);
+        }
+        const cancelled = result.cancelled_reservations ?? 0;
+        showFeedback(
+            'success',
+            'Dia cancelado',
+            cancelled > 0
+                ? `${cancelled} reserva(s) cancelada(s). O dia está bloqueado para novas reservas.`
+                : 'O dia foi bloqueado para novas reservas.',
+        );
+        await loadReservations();
+    } catch (e) {
+        showFeedback(
+            'info',
+            'Não foi possível cancelar o dia',
+            e.response?.data?.message ?? 'Falha ao cancelar o dia.',
+        );
+    }
+}
+
+async function confirmReopenDay() {
+    reopenDayDialogOpen.value = false;
+    try {
+        const result = await reopenBookingDay(selectedDate.value);
+        if (result.day) {
+            applyDayClosureStatus(result.day);
+        } else {
+            dayClosure.value = null;
+        }
+        showFeedback('success', 'Dia reaberto', 'Este dia voltou a aceitar novas reservas.');
+        await loadReservations();
+    } catch (e) {
+        showFeedback(
+            'info',
+            'Não foi possível reabrir',
+            e.response?.data?.message ?? 'Falha ao reabrir o dia.',
+        );
+    }
 }
 
 async function confirmCancelReservation() {

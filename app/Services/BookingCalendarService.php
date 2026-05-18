@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClosedBookingDay;
 use Carbon\CarbonImmutable;
 use Throwable;
 
@@ -10,8 +11,16 @@ class BookingCalendarService
     /** @var array<string, string>|null */
     private static ?array $holidayCache = null;
 
+    /** @var array<string, string>|null */
+    private static ?array $closedDayCache = null;
+
+    public static function forgetClosedDaysCache(): void
+    {
+        self::$closedDayCache = null;
+    }
+
     /**
-     * @return array{type: 'weekend'|'holiday', message: string, label: string|null}|null
+     * @return array{type: 'weekend'|'holiday'|'closed', message: string, label: string|null, reopenable?: bool}|null
      */
     public function closureForDate(CarbonImmutable $date): ?array
     {
@@ -22,6 +31,7 @@ class BookingCalendarService
                 'type' => 'weekend',
                 'label' => null,
                 'message' => 'Reservas canceladas - final de semana',
+                'reopenable' => false,
             ];
         }
 
@@ -32,10 +42,48 @@ class BookingCalendarService
                 'type' => 'holiday',
                 'label' => $holiday,
                 'message' => 'Reservas canceladas - feriado de '.$holiday,
+                'reopenable' => false,
+            ];
+        }
+
+        $closedReason = $this->closedDayReason($day);
+
+        if ($closedReason !== null) {
+            return [
+                'type' => 'closed',
+                'label' => $closedReason,
+                'message' => 'Reservas canceladas - '.$closedReason,
+                'reopenable' => true,
             ];
         }
 
         return null;
+    }
+
+    public function closedDayReason(CarbonImmutable $date): ?string
+    {
+        $key = $date->toDateString();
+
+        return $this->closedDays()[$key] ?? null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function closedDays(): array
+    {
+        if (self::$closedDayCache !== null) {
+            return self::$closedDayCache;
+        }
+
+        self::$closedDayCache = ClosedBookingDay::query()
+            ->get(['date', 'reason'])
+            ->mapWithKeys(static fn (ClosedBookingDay $row): array => [
+                CarbonImmutable::parse($row->date)->toDateString() => $row->reason,
+            ])
+            ->all();
+
+        return self::$closedDayCache;
     }
 
     public function isBookableDate(CarbonImmutable $date): bool
@@ -192,9 +240,10 @@ class BookingCalendarService
      * @return array{
      *     date: string,
      *     bookable: bool,
-     *     type: 'weekend'|'holiday'|null,
+     *     type: 'weekend'|'holiday'|'closed'|null,
      *     message: string|null,
-     *     label: string|null
+     *     label: string|null,
+     *     reopenable: bool
      * }
      */
     public function dayStatus(CarbonImmutable $date): array
@@ -208,6 +257,7 @@ class BookingCalendarService
             'type' => $closure['type'] ?? null,
             'message' => $closure['message'] ?? null,
             'label' => $closure['label'] ?? null,
+            'reopenable' => $closure['reopenable'] ?? false,
         ];
     }
 }

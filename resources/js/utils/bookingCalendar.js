@@ -76,3 +76,22 @@ export async function fetchDayBookingStatus(date) {
         return localDayBookingStatus(date);
     }
 }
+
+export async function closeBookingDay(date, { reason, cancelReservations = true, blockNewReservations = true }) {
+    const { data } = await api.post('/api/admin/booking-calendar/close-day', {
+        date: formatDateParam(date),
+        reason,
+        cancel_reservations: cancelReservations,
+        block_new_reservations: blockNewReservations,
+    });
+
+    return data;
+}
+
+export async function reopenBookingDay(date) {
+    const { data } = await api.delete('/api/admin/booking-calendar/close-day', {
+        params: { date: formatDateParam(date) },
+    });
+
+    return data;
+}
