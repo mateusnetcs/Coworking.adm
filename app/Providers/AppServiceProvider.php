@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\PublicAppUrl;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -51,19 +52,21 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $request = $this->app->make(Request::class);
+        $root = PublicAppUrl::base($request);
 
-        if ($request->getHost() === '') {
+        if ($root === '') {
             return;
         }
 
-        $root = $request->getSchemeAndHttpHost();
+        $scheme = parse_url($root, PHP_URL_SCHEME) ?: 'http';
 
         URL::forceRootUrl($root);
+        URL::forceScheme($scheme);
 
         config([
             'app.url' => $root,
             'coworking.frontend_url' => $root,
-            'services.google.redirect' => $root.'/auth/google/callback',
+            'services.google.redirect' => PublicAppUrl::googleCallback($request),
         ]);
     }
 }

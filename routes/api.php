@@ -6,17 +6,23 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\ReservationController;
+use App\Support\PublicAppUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/auth/google/status', function () {
     $clientId = config('services.google.client_id');
     $clientSecret = config('services.google.client_secret');
+    $redirectUri = PublicAppUrl::googleCallback();
 
     return response()->json([
         'enabled' => is_string($clientId) && $clientId !== ''
             && is_string($clientSecret) && $clientSecret !== '',
-        'redirect_uri' => url('/auth/google/callback'),
+        'redirect_uri' => $redirectUri,
+        'google_console' => [
+            'redirect_uri' => $redirectUri,
+            'javascript_origin' => PublicAppUrl::base(),
+        ],
     ]);
 })->name('api.google.status');
 

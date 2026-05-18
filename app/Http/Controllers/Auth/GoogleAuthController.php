@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Support\PublicAppUrl;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class GoogleAuthController extends Controller
 
         return Socialite::driver('google')
             ->stateless()
-            ->redirectUrl(url('/auth/google/callback'))
+            ->redirectUrl(PublicAppUrl::googleCallback())
             ->redirect();
     }
 
