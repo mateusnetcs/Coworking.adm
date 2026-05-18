@@ -66,7 +66,7 @@ class AppServiceProvider extends ServiceProvider
         config([
             'app.url' => $root,
             'coworking.frontend_url' => $root,
-            'services.google.redirect' => PublicAppUrl::googleCallback($request),
+            'services.google.redirect' => PublicAppUrl::googleRedirectUri($request),
         ]);
     }
 }

@@ -31,6 +31,20 @@ class PublicAppUrl
 
     public static function googleCallback(?Request $request = null): string
     {
+        return self::googleRedirectUri($request);
+    }
+
+    /**
+     * URI enviada ao Google OAuth. Use GOOGLE_REDIRECT_URI só se precisar igualar ao Console.
+     */
+    public static function googleRedirectUri(?Request $request = null): string
+    {
+        $forced = env('GOOGLE_REDIRECT_URI');
+
+        if (is_string($forced) && $forced !== '') {
+            return rtrim($forced, '/');
+        }
+
         return self::base($request).'/auth/google/callback';
     }
 }
