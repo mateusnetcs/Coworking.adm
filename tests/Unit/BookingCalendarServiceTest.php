@@ -8,16 +8,25 @@ use PHPUnit\Framework\TestCase;
 
 class BookingCalendarServiceTest extends TestCase
 {
-  public function test_weekend_is_not_bookable(): void
+    public function test_saturday_is_bookable(): void
     {
         $service = new BookingCalendarService;
 
         $saturday = CarbonImmutable::parse('2026-05-16', 'America/Sao_Paulo');
-        $closure = $service->closureForDate($saturday);
+
+        $this->assertTrue($service->isBookableDate($saturday));
+    }
+
+    public function test_sunday_is_not_bookable(): void
+    {
+        $service = new BookingCalendarService;
+
+        $sunday = CarbonImmutable::parse('2026-05-17', 'America/Sao_Paulo');
+        $closure = $service->closureForDate($sunday);
 
         $this->assertNotNull($closure);
         $this->assertSame('weekend', $closure['type']);
-        $this->assertSame('Reservas canceladas - final de semana', $closure['message']);
+        $this->assertSame('Reservas canceladas - domingo', $closure['message']);
     }
 
     public function test_christmas_holiday_message(): void

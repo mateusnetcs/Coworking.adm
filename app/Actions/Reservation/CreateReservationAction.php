@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateReservationAction
@@ -15,12 +16,12 @@ class CreateReservationAction
         User $booker,
         CarbonImmutable $startsAt,
         CarbonImmutable $endsAt,
-        int $coursePeriod,
+        ?int $coursePeriod,
         string $activity,
         array $companions,
         string $contactEmail,
         string $phone,
-        string $institution,
+        ?string $institution,
         string $spaceType,
         ?array $computers,
     ): Reservation {
@@ -50,6 +51,7 @@ class CreateReservationAction
 
                 return Reservation::query()->create([
                     'user_id' => $booker->id,
+                    'confirmation_code' => (string) Str::uuid(),
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                     'course_period' => $coursePeriod,

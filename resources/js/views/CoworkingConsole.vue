@@ -1020,8 +1020,8 @@ async function createReservation(payload) {
         formError.value = 'Informe data e horário válidos.';
         return;
     }
-    if (!coursePeriod || coursePeriod < 1 || coursePeriod > 8) {
-        formError.value = 'Selecione o período do curso (1 a 8).';
+    if (coursePeriod && (coursePeriod < 1 || coursePeriod > 8)) {
+        formError.value = 'O período do curso deve ser entre 1 e 8.';
         return;
     }
     if (!activity || activity.length < 3) {
@@ -1051,11 +1051,11 @@ async function createReservation(payload) {
             ends_at: end.toISOString(),
             contact_email: contactEmail,
             phone,
-            institution,
+            institution: institution || null,
             space_type: spaceType,
             computers,
             terms_accepted: termsAccepted,
-            course_period: coursePeriod,
+            course_period: coursePeriod || null,
             activity,
             companions,
         });

@@ -11,8 +11,8 @@ RUN npm run build
 
 FROM composer:2 AS vendor
 WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-progress
+COPY composer.json composer.lock* ./
+RUN composer update --no-dev --no-interaction --no-progress --prefer-dist
 COPY . .
 RUN composer dump-autoload --optimize --classmap-authoritative
 
@@ -23,7 +23,9 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl libpq-dev default-libmysqlclient-dev \
-    && docker-php-ext-install pdo_pgsql pdo_mysql opcache calendar \
+    && apt-get install -y --no-install-recommends libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_pgsql pdo_mysql opcache calendar gd \
     && a2enmod rewrite headers \
     && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \

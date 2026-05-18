@@ -25,7 +25,9 @@ class StoreReservationRequest extends FormRequest
             ->map(static function (array $companion): array {
                 return [
                     'name' => Str::limit(trim(strip_tags((string) ($companion['name'] ?? ''))), 120, ''),
-                    'course_period' => (int) ($companion['course_period'] ?? 0),
+                    'course_period' => filled($companion['course_period'] ?? null)
+                        ? (int) $companion['course_period']
+                        : null,
                     'activity' => Str::limit(trim(strip_tags((string) ($companion['activity'] ?? ''))), 500, ''),
                 ];
             })
@@ -51,11 +53,19 @@ class StoreReservationRequest extends FormRequest
             'activity' => Str::limit(trim(strip_tags((string) $this->input('activity', ''))), 500, ''),
             'contact_email' => Str::lower(trim((string) $this->input('contact_email', ''))),
             'phone' => BrazilPhone::digitsOnly((string) $this->input('phone', '')),
-            'institution' => Str::limit(trim(strip_tags((string) $this->input('institution', ''))), 120, ''),
+            'institution' => $this->nullableString('institution', 120),
+            'course_period' => $this->filled('course_period') ? (int) $this->input('course_period') : null,
             'companions' => $companions,
             'computers' => $computers,
             'terms_accepted' => filter_var($this->input('terms_accepted'), FILTER_VALIDATE_BOOLEAN),
         ]);
+    }
+
+    private function nullableString(string $key, int $max): ?string
+    {
+        $value = Str::limit(trim(strip_tags((string) $this->input($key, ''))), $max, '');
+
+        return $value === '' ? null : $value;
     }
 
     public function withValidator(Validator $validator): void
@@ -104,7 +114,7 @@ class StoreReservationRequest extends FormRequest
         return [
             'starts_at' => ['required', 'date', 'after_or_equal:now'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
-            'course_period' => ['required', 'integer', 'between:1,8'],
+            'course_period' => ['nullable', 'integer', 'between:1,8'],
             'activity' => ['required', 'string', 'min:3', 'max:500'],
             'contact_email' => ['required', 'email', 'max:255'],
             'phone' => [
@@ -117,7 +127,7 @@ class StoreReservationRequest extends FormRequest
                     }
                 },
             ],
-            'institution' => ['required', 'string', 'min:2', 'max:120'],
+            'institution' => ['nullable', 'string', 'max:120'],
             'space_type' => [
                 'required',
                 'string',
@@ -132,7 +142,7 @@ class StoreReservationRequest extends FormRequest
             'terms_accepted' => ['required', 'accepted'],
             'companions' => ['nullable', 'array', 'max:40'],
             'companions.*.name' => ['required', 'string', 'min:2', 'max:120', 'regex:/^[\p{L}\p{N}\s.\'-]+$/u'],
-            'companions.*.course_period' => ['required', 'integer', 'between:1,8'],
+            'companions.*.course_period' => ['nullable', 'integer', 'between:1,8'],
             'companions.*.activity' => ['required', 'string', 'min:3', 'max:500'],
         ];
     }
@@ -142,7 +152,6 @@ class StoreReservationRequest extends FormRequest
         return [
             'starts_at.after_or_equal' => 'O horário de início deve ser igual ou posterior ao horário atual.',
             'ends_at.after' => 'O horário de término deve ser depois do horário de início.',
-            'course_period.required' => 'Informe o período do curso.',
             'course_period.between' => 'O período do curso deve ser entre 1 e 8.',
             'activity.required' => 'Descreva a atividade que será desenvolvida no coworking.',
             'activity.min' => 'A atividade deve ter pelo menos :min caracteres.',
@@ -150,12 +159,10 @@ class StoreReservationRequest extends FormRequest
             'contact_email.email' => 'Informe um e-mail válido.',
             'phone.required' => 'Informe seu telefone (WhatsApp).',
             'phone.size' => 'O telefone deve ter DDD + 9 dígitos (ex.: (99) 9999-9999).',
-            'institution.required' => 'Informe sua instituição.',
             'space_type.required' => 'Selecione qual espaço deseja reservar.',
             'space_type.in' => 'Tipo de espaço inválido.',
             'terms_accepted.accepted' => 'É necessário aceitar o termo de responsabilidade.',
             'companions.*.name.required' => 'Informe o nome de cada colega adicionado.',
-            'companions.*.course_period.required' => 'Informe o período do curso de cada colega.',
             'companions.*.course_period.between' => 'O período do curso deve ser entre 1 e 8.',
             'companions.*.activity.required' => 'Descreva a atividade de cada colega no coworking.',
             'companions.*.activity.min' => 'A atividade de cada colega deve ter pelo menos :min caracteres.',

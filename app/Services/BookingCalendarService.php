@@ -26,11 +26,11 @@ class BookingCalendarService
     {
         $day = $date->timezone(config('app.timezone'))->startOfDay();
 
-        if ($this->isWeekend($day)) {
+        if ($this->isSunday($day)) {
             return [
                 'type' => 'weekend',
                 'label' => null,
-                'message' => 'Reservas canceladas - final de semana',
+                'message' => 'Reservas canceladas - domingo',
                 'reopenable' => false,
             ];
         }
@@ -116,9 +116,15 @@ class BookingCalendarService
         }
     }
 
+    public function isSunday(CarbonImmutable $date): bool
+    {
+        return $date->isSunday();
+    }
+
+    /** @deprecated Use isSunday() — sábados estão liberados para reserva. */
     public function isWeekend(CarbonImmutable $date): bool
     {
-        return $date->isSaturday() || $date->isSunday();
+        return $this->isSunday($date);
     }
 
     public function holidayLabel(CarbonImmutable $date): ?string

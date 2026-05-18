@@ -34,12 +34,12 @@ function monthDayKey(date) {
 export function localDayBookingStatus(date) {
     const dayOfWeek = date.getDay();
 
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
+    if (dayOfWeek === 0) {
         return {
             date: formatDateParam(date),
             bookable: false,
             type: 'weekend',
-            message: 'Reservas canceladas - final de semana',
+            message: 'Reservas canceladas - domingo',
             label: null,
         };
     }

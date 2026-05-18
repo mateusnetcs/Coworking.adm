@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\ReservationController;
+use App\Http\Controllers\ReservationConfirmationController;
 use App\Support\PublicAppUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +55,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy'])
         ->middleware('can:deleteAsOwner,reservation')
         ->name('api.reservations.destroy');
+
+    Route::get('/reservations/{reservation}/confirmation-pdf', [ReservationConfirmationController::class, 'downloadPdf'])
+        ->name('api.reservations.confirmation-pdf');
 
     Route::prefix('admin')->middleware('admin')->group(function (): void {
         Route::get('/reservations', [AdminReservationController::class, 'index'])

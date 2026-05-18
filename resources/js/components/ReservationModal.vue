@@ -96,8 +96,8 @@
                         <p class="mt-1 text-xs text-slate-500">DDD + número do celular (com 9 na frente).</p>
                     </label>
                     <label class="block">
-                        <span class="field-label">Instituição <span class="text-error">*</span></span>
-                        <input v-model="localForm.institution" type="text" required maxlength="120" placeholder="Ex.: Uemasul" class="field-input" />
+                        <span class="field-label">Instituição <span class="text-slate-400 font-normal">(opcional)</span></span>
+                        <input v-model="localForm.institution" type="text" maxlength="120" placeholder="Ex.: Uemasul" class="field-input" />
                     </label>
                     </div>
                 </section>
@@ -150,8 +150,8 @@
                     </header>
                     <div class="modal-section__body grid grid-cols-1 md:grid-cols-3 gap-4">
                         <label class="block md:col-span-1">
-                            <span class="field-label">Período do curso <span class="text-error">*</span></span>
-                            <select v-model="localForm.coursePeriod" required class="field-input">
+                            <span class="field-label">Período do curso <span class="text-slate-400 font-normal">(opcional)</span></span>
+                            <select v-model="localForm.coursePeriod" class="field-input">
                                 <option disabled value="">Selecione</option>
                                 <option v-for="period in coursePeriods" :key="period" :value="period">{{ period }}º período</option>
                             </select>
@@ -176,7 +176,7 @@
                         </button>
                     </div>
                     <p class="text-body-sm text-slate-500 mb-sm">
-                        Opcional. Para cada colega, informe nome, período do curso e atividade.
+                        Opcional. Para cada colega, informe nome e atividade (período do curso é opcional).
                     </p>
                     <div class="space-y-md">
                         <div
@@ -425,11 +425,7 @@ function removeCompanion(index) {
 }
 
 function companionIsComplete(companion) {
-    return (
-        companion.name.trim() !== ''
-        && companion.coursePeriod !== ''
-        && companion.activity.trim().length >= 3
-    );
+    return companion.name.trim().length >= 2 && companion.activity.trim().length >= 3;
 }
 
 function companionIsEmpty(companion) {
@@ -450,10 +446,6 @@ function submit() {
         return;
     }
     const phoneDigits = digitsOnly(localForm.phone);
-    if (!localForm.institution.trim()) {
-        emit('submit', { validationError: 'Informe sua instituição.' });
-        return;
-    }
     if (!localForm.spaceType) {
         emit('submit', { validationError: 'Selecione qual espaço deseja reservar.' });
         return;
@@ -471,7 +463,7 @@ function submit() {
         (companion) => !companionIsEmpty(companion) && !companionIsComplete(companion),
     );
     if (incomplete.length > 0) {
-        emit('submit', { validationError: 'Preencha nome, período e atividade de cada colega adicionado.' });
+        emit('submit', { validationError: 'Preencha nome e atividade de cada colega adicionado.' });
         return;
     }
 
@@ -479,7 +471,7 @@ function submit() {
         .filter(companionIsComplete)
         .map((companion) => ({
             name: companion.name.trim(),
-            course_period: Number(companion.coursePeriod),
+            course_period: companion.coursePeriod ? Number(companion.coursePeriod) : null,
             activity: companion.activity.trim(),
         }));
 
@@ -493,11 +485,11 @@ function submit() {
         endsAt: localForm.endsAt,
         contactEmail: localForm.contactEmail.trim(),
         phone: phoneDigits,
-        institution: localForm.institution.trim(),
+        institution: localForm.institution.trim() || null,
         spaceType: localForm.spaceType,
         computers,
         termsAccepted: true,
-        coursePeriod: Number(localForm.coursePeriod),
+        coursePeriod: localForm.coursePeriod ? Number(localForm.coursePeriod) : null,
         activity: localForm.activity.trim(),
         companions,
     };

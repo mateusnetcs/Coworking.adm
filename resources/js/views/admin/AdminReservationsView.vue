@@ -108,7 +108,7 @@
                                         </a>
                                     </div>
                                 </td>
-                                <td class="px-md py-sm">{{ r.course_period }}º</td>
+                                <td class="px-md py-sm">{{ r.course_period ? `${r.course_period}º` : '—' }}</td>
                                 <td class="px-md py-sm max-w-[200px] truncate" :title="r.activity">{{ r.activity }}</td>
                                 <td class="px-md py-sm">
                                     <span

@@ -55,7 +55,7 @@ class AdminReservationController extends Controller
             $booker,
             $startsAt,
             $endsAt,
-            (int) $request->validated('course_period'),
+            $request->validated('course_period'),
             $request->validated('activity'),
             $request->validated('companions') ?? [],
             $request->validated('contact_email'),
