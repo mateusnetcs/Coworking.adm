@@ -88,7 +88,11 @@
 
     <div class="qr-box">
         <p style="font-weight: bold; margin: 0 0 10px;">Validação do comprovante</p>
-        <img src="data:image/png;base64,{{ $qrCodeBase64 }}" alt="QR Code">
+        @if($qrCodeBase64)
+            <img src="data:image/png;base64,{{ $qrCodeBase64 }}" alt="QR Code" width="180" height="180">
+        @else
+            {!! $qrCodeHtml !!}
+        @endif
         <p class="code" style="margin-top: 10px;">{{ $verificationUrl }}</p>
     </div>
 

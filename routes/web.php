@@ -11,6 +11,8 @@ Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
 
 Route::get('/comprovante/{code}', [ReservationConfirmationController::class, 'verify'])
     ->name('reservation.verify');
+Route::post('/comprovante/{code}/presenca', [ReservationConfirmationController::class, 'markAttendance'])
+    ->name('reservation.mark-attendance');
 
 Route::view('/', 'app');
 Route::view('/{any}', 'app')->where('any', '.*');

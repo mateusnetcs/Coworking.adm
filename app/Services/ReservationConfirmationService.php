@@ -4,10 +4,10 @@ namespace App\Services;
 
 use App\Models\Reservation;
 use App\Support\PublicAppUrl;
+use App\Support\QrCodeGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class ReservationConfirmationService
 {
@@ -30,15 +30,18 @@ class ReservationConfirmationService
         return PublicAppUrl::base().'/comprovante/'.$reservation->confirmation_code;
     }
 
-    public function qrCodeBase64(Reservation $reservation): string
+    /**
+     * @return array{base64: ?string, html: string}
+     */
+    public function qrCodeForPdf(Reservation $reservation): array
     {
-        $png = QrCode::format('png')
-            ->size(220)
-            ->margin(1)
-            ->errorCorrection('M')
-            ->generate($this->verificationUrl($reservation));
+        $url = $this->verificationUrl($reservation);
+        $base64 = QrCodeGenerator::tryPngBase64($url, 220, 1, 'M');
 
-        return base64_encode($png);
+        return [
+            'base64' => $base64,
+            'html' => $base64 === null ? QrCodeGenerator::toHtmlTable($url, 180, 1, 'M') : '',
+        ];
     }
 
     /**
@@ -50,6 +53,7 @@ class ReservationConfirmationService
         $timezone = config('app.timezone');
         $startsAt = CarbonImmutable::parse($reservation->starts_at)->timezone($timezone);
         $endsAt = CarbonImmutable::parse($reservation->ends_at)->timezone($timezone);
+        $qrCode = $this->qrCodeForPdf($reservation);
 
         return [
             'reservation' => $reservation,
@@ -64,7 +68,8 @@ class ReservationConfirmationService
             'endsAt' => $endsAt,
             'confirmationCode' => $reservation->confirmation_code,
             'verificationUrl' => $this->verificationUrl($reservation),
-            'qrCodeBase64' => $this->qrCodeBase64($reservation),
+            'qrCodeBase64' => $qrCode['base64'],
+            'qrCodeHtml' => $qrCode['html'],
             'issuedAt' => now()->timezone($timezone),
         ];
     }
@@ -82,6 +87,98 @@ class ReservationConfirmationService
             ->with(['booker:id,name,email'])
             ->where('confirmation_code', $code)
             ->first();
+    }
+
+    /**
+     * @return array{can_mark: bool, message: string, attended: bool, attended_at: ?CarbonImmutable}
+     */
+    public function attendanceContext(Reservation $reservation, ?CarbonImmutable $at = null): array
+    {
+        $timezone = config('app.timezone');
+        $at ??= CarbonImmutable::now($timezone);
+
+        if ($reservation->isAttended()) {
+            $attendedAt = CarbonImmutable::parse($reservation->attended_at)->timezone($timezone);
+
+            return [
+                'can_mark' => false,
+                'message' => 'Presença registrada em '.$attendedAt->format('d/m/Y \à\s H:i').'.',
+                'attended' => true,
+                'attended_at' => $attendedAt,
+            ];
+        }
+
+        $check = $this->canMarkAttendance($reservation, $at);
+
+        return [
+            'can_mark' => $check['allowed'],
+            'message' => $check['message'],
+            'attended' => false,
+            'attended_at' => null,
+        ];
+    }
+
+    /**
+     * @return array{allowed: bool, message: string}
+     */
+    public function canMarkAttendance(Reservation $reservation, ?CarbonImmutable $at = null): array
+    {
+        $timezone = config('app.timezone');
+        $at ??= CarbonImmutable::now($timezone);
+        $startsAt = CarbonImmutable::parse($reservation->starts_at)->timezone($timezone);
+        $endsAt = CarbonImmutable::parse($reservation->ends_at)->timezone($timezone);
+
+        if (! $at->isSameDay($startsAt)) {
+            if ($at->lt($startsAt->startOfDay())) {
+                return [
+                    'allowed' => false,
+                    'message' => 'O check-in fica disponível no dia da reserva ('.$startsAt->format('d/m/Y').').',
+                ];
+            }
+
+            return [
+                'allowed' => false,
+                'message' => 'O prazo para marcar presença nesta reserva já encerrou.',
+            ];
+        }
+
+        $minutesBefore = max(0, (int) config('coworking.check_in_minutes_before', 30));
+        $minutesAfter = max(0, (int) config('coworking.check_in_minutes_after', 30));
+        $windowStart = $startsAt->subMinutes($minutesBefore);
+        $windowEnd = $endsAt->addMinutes($minutesAfter);
+
+        if ($at->lt($windowStart)) {
+            return [
+                'allowed' => false,
+                'message' => 'Check-in disponível a partir das '.$windowStart->format('H:i').'.',
+            ];
+        }
+
+        if ($at->gt($windowEnd)) {
+            return [
+                'allowed' => false,
+                'message' => 'O horário para marcar presença encerrou às '.$windowEnd->format('H:i').'.',
+            ];
+        }
+
+        return ['allowed' => true, 'message' => ''];
+    }
+
+    public function markAttendance(Reservation $reservation): Reservation
+    {
+        if ($reservation->isAttended()) {
+            return $reservation->loadMissing('booker:id,name,email');
+        }
+
+        $check = $this->canMarkAttendance($reservation);
+        if (! $check['allowed']) {
+            throw new \InvalidArgumentException($check['message']);
+        }
+
+        $reservation->attended_at = now();
+        $reservation->save();
+
+        return $reservation->fresh(['booker:id,name,email']);
     }
 
     private function formatSpace(Reservation $reservation): string

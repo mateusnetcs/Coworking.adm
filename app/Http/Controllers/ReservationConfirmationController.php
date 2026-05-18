@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Reservation;
 use App\Services\ReservationConfirmationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -14,11 +15,39 @@ class ReservationConfirmationController extends Controller
     {
         $reservation = $confirmation->findByCode($code);
 
+        $attendance = $reservation
+            ? $confirmation->attendanceContext($reservation)
+            : null;
+
         return view('comprovante.verify', [
             'valid' => $reservation !== null,
             'reservation' => $reservation,
             'code' => $code,
+            'attendance' => $attendance,
         ]);
+    }
+
+    public function markAttendance(string $code, ReservationConfirmationService $confirmation): RedirectResponse
+    {
+        $reservation = $confirmation->findByCode($code);
+
+        if ($reservation === null) {
+            return redirect()
+                ->route('reservation.verify', ['code' => $code])
+                ->with('attendance_error', 'Comprovante não encontrado.');
+        }
+
+        try {
+            $confirmation->markAttendance($reservation);
+        } catch (\InvalidArgumentException $exception) {
+            return redirect()
+                ->route('reservation.verify', ['code' => $code])
+                ->with('attendance_error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('reservation.verify', ['code' => $code])
+            ->with('attendance_success', 'Presença registrada com sucesso!');
     }
 
     public function downloadPdf(

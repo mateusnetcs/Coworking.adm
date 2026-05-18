@@ -26,6 +26,12 @@ return [
     /** Horas de antecedência mínimas para cancelar (após o fim da janela de edição). */
     'cancel_hours_before' => (int) env('COWORKING_CANCEL_HOURS_BEFORE', 3),
 
+    /** Minutos antes do início em que o check-in via QR é permitido. */
+    'check_in_minutes_before' => (int) env('COWORKING_CHECK_IN_MINUTES_BEFORE', 30),
+
+    /** Minutos após o término em que ainda é possível marcar presença via QR. */
+    'check_in_minutes_after' => (int) env('COWORKING_CHECK_IN_MINUTES_AFTER', 30),
+
     'space_types' => [
         'computer' => 'Uso de computador',
         'meeting_room' => 'Sala para reunião / apresentação',
