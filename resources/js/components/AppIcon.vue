@@ -2,6 +2,7 @@
     <svg
         v-if="name === 'progress_activity'"
         :class="svgClass"
+        :style="svgStyle"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -21,6 +22,7 @@
     <svg
         v-else-if="path"
         :class="svgClass"
+        :style="svgStyle"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         aria-hidden="true"
@@ -67,10 +69,21 @@ const sizeClasses = {
     lg: 'w-7 h-7',
 };
 
+const sizePx = {
+    sm: 16,
+    md: 20,
+    lg: 28,
+};
+
 const path = computed(() => paths[props.name] ?? null);
 
 const svgClass = computed(() => {
     const size = sizeClasses[props.size] ?? sizeClasses.md;
     return [size, 'shrink-0', 'inline-block', props.class].filter(Boolean).join(' ');
+});
+
+const svgStyle = computed(() => {
+    const px = sizePx[props.size] ?? sizePx.md;
+    return { width: `${px}px`, height: `${px}px`, flexShrink: 0 };
 });
 </script>
