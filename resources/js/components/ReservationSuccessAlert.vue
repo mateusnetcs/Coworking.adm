@@ -10,7 +10,7 @@
         @cancel="$emit('acknowledge')"
     >
         <div class="mt-4 space-y-3">
-            <motion class="rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <div class="rounded-xl border border-primary/25 bg-primary/5 p-4">
                 <p class="text-xs font-semibold uppercase tracking-wide text-primary">Tempo para editar</p>
                 <p class="text-2xl font-bold text-primary mt-1 font-mono tabular-nums">{{ editCountdown }}</p>
                 <p class="text-xs text-slate-600 mt-1">
