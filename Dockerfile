@@ -36,6 +36,9 @@ COPY --from=frontend /app/public/build ./public/build
 RUN mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
+COPY docker/apache-security.conf /etc/apache2/conf-available/coworking-security.conf
+RUN a2enconf coworking-security
+
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

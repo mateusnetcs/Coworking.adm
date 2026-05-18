@@ -63,10 +63,19 @@ class AppServiceProvider extends ServiceProvider
         URL::forceRootUrl($root);
         URL::forceScheme($scheme);
 
+        $secureCookies = env('SESSION_SECURE_COOKIE');
+
+        if ($secureCookies === null || $secureCookies === '') {
+            $secureCookies = $scheme === 'https';
+        } else {
+            $secureCookies = filter_var($secureCookies, FILTER_VALIDATE_BOOL);
+        }
+
         config([
             'app.url' => $root,
             'coworking.frontend_url' => $root,
             'services.google.redirect' => PublicAppUrl::googleRedirectUri($request),
+            'session.secure' => $secureCookies,
         ]);
     }
 }
