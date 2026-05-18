@@ -127,15 +127,28 @@
                                             Passado
                                         </span>
                                     </div>
-                                    <button
+                                    <div
                                         v-if="reservationForHour(hour)"
-                                        type="button"
-                                        class="text-xs text-slate-500 mt-1 truncate text-left w-full hover:text-primary"
-                                        @click.stop="selectReservation(reservationForHour(hour))"
+                                        class="mt-1 flex flex-wrap items-center gap-2"
                                     >
-                                        {{ reservationForHour(hour).booker?.name ?? 'Reserva' }}
-                                        · {{ formatTimeRange(reservationForHour(hour).starts_at, reservationForHour(hour).ends_at) }}
-                                    </button>
+                                        <button
+                                            type="button"
+                                            class="text-xs text-slate-500 truncate text-left hover:text-primary min-w-0 flex-1"
+                                            @click.stop="selectReservation(reservationForHour(hour))"
+                                        >
+                                            {{ reservationForHour(hour).booker?.name ?? 'Reserva' }}
+                                            · {{ formatTimeRange(reservationForHour(hour).starts_at, reservationForHour(hour).ends_at) }}
+                                        </button>
+                                        <button
+                                            v-if="canCancel(reservationForHour(hour))"
+                                            type="button"
+                                            class="text-[10px] font-semibold uppercase tracking-wide text-error hover:bg-error-container px-1.5 py-0.5 rounded shrink-0"
+                                            title="Cancelar reserva"
+                                            @click.stop="requestCancelReservation(reservationForHour(hour))"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
                                 </div>
                             </label>
                         </li>
@@ -279,7 +292,13 @@
                 <p class="text-body-sm text-slate-600 mb-md">
                     {{ formatTimeRange(selected.starts_at, selected.ends_at) }}
                 </p>
-                <div v-if="selected.rules" class="mb-md space-y-2">
+                <p
+                    v-if="isAdmin"
+                    class="mb-md rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary"
+                >
+                    Como administrador, você pode cancelar esta reserva em qualquer dia e horário.
+                </p>
+                <div v-else-if="selected.rules" class="mb-md space-y-2">
                     <div
                         v-if="selected.rules.in_edit_window"
                         class="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
@@ -736,7 +755,12 @@ const cancelDialogMessage = computed(() => {
         return '';
     }
     const r = cancelTarget.value;
-    return `Deseja cancelar a reserva de ${formatTimeRange(r.starts_at, r.ends_at)}?\n\nEsta ação não pode ser desfeita.`;
+    const who = r.booker?.name ?? 'usuário';
+    const when = formatTimeRange(r.starts_at, r.ends_at);
+    if (isAdmin.value) {
+        return `Cancelar a reserva de ${who} (${when})?\n\nComo administrador, o cancelamento vale para qualquer dia. Esta ação não pode ser desfeita.`;
+    }
+    return `Deseja cancelar a reserva de ${when}?\n\nEsta ação não pode ser desfeita.`;
 });
 
 function closeModal() {
@@ -771,7 +795,7 @@ function showFeedback(variant, title, message) {
 function normalizeReservations(list) {
     return list.map((r) => ({
         ...r,
-        rules: r.rules ? refreshRulesMeta(r.rules) : r.rules,
+        rules: r.rules ? refreshRulesMeta(r.rules, { isAdmin: isAdmin.value }) : r.rules,
     }));
 }
 
@@ -786,7 +810,7 @@ function tickRules() {
     if (lastCreatedReservation.value?.rules) {
         lastCreatedReservation.value = {
             ...lastCreatedReservation.value,
-            rules: refreshRulesMeta(lastCreatedReservation.value.rules),
+            rules: refreshRulesMeta(lastCreatedReservation.value.rules, { isAdmin: isAdmin.value }),
         };
     }
 }
@@ -803,10 +827,13 @@ function canEdit(r) {
 }
 
 function canCancel(r) {
-    if (!user.value) {
+    if (!user.value || !r) {
         return false;
     }
-    if (r.user_id !== user.value.id && !isAdmin.value) {
+    if (isAdmin.value) {
+        return true;
+    }
+    if (r.user_id !== user.value.id) {
         return false;
     }
     return Boolean(r.rules?.can_cancel);
@@ -1010,7 +1037,7 @@ async function confirmCancelReservation() {
     }
     cancelDialogOpen.value = false;
     try {
-        if (isAdmin.value && r.user_id !== user.value?.id) {
+        if (isAdmin.value) {
             await api.delete(`/api/admin/reservations/${r.id}`);
         } else {
             await api.delete(`/api/reservations/${r.id}`);

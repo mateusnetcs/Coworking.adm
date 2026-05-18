@@ -10,7 +10,7 @@ export function formatCountdown(totalSeconds) {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function refreshRulesMeta(rules) {
+export function refreshRulesMeta(rules, { isAdmin = false } = {}) {
     if (!rules?.editable_until) {
         return rules;
     }
@@ -18,7 +18,7 @@ export function refreshRulesMeta(rules) {
     const editableUntil = new Date(rules.editable_until).getTime();
     const cancelDeadline = new Date(rules.cancel_deadline).getTime();
     const inEditWindow = now < editableUntil;
-    const cancelCountdownVisible = !inEditWindow;
+    const cancelCountdownVisible = !inEditWindow && !isAdmin && !rules.admin_can_cancel;
 
     const editSecondsRemaining = inEditWindow
         ? Math.max(0, Math.floor((editableUntil - now) / 1000))
@@ -30,7 +30,7 @@ export function refreshRulesMeta(rules) {
     }
 
     const startsAt = new Date(rules.starts_at).getTime();
-    const canCancel = now < cancelDeadline && now < startsAt;
+    const canCancel = isAdmin || rules.admin_can_cancel || (now < cancelDeadline && now < startsAt);
 
     let cancelBlockedReason = rules.cancel_blocked_reason;
     if (!canCancel && cancelCountdownVisible) {
@@ -49,6 +49,6 @@ export function refreshRulesMeta(rules) {
         cancel_seconds_remaining: cancelSecondsRemaining,
         can_edit: inEditWindow && editSecondsRemaining > 0 && now < startsAt,
         can_cancel: canCancel,
-        cancel_blocked_reason: cancelBlockedReason,
+        cancel_blocked_reason: canCancel ? null : cancelBlockedReason,
     };
 }

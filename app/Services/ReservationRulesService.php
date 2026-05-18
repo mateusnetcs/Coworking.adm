@@ -77,11 +77,11 @@ class ReservationRulesService
 
     public function canCancel(Reservation $reservation, ?User $user = null, ?CarbonInterface $at = null): bool
     {
-        $at ??= now();
-
         if ($user?->isAdministrator()) {
-            return $at->lt($reservation->starts_at);
+            return true;
         }
+
+        $at ??= now();
 
         if ($at->gte($reservation->starts_at)) {
             return false;
@@ -92,6 +92,10 @@ class ReservationRulesService
 
     public function cancelBlockedReason(Reservation $reservation, ?User $user = null): ?string
     {
+        if ($user?->isAdministrator()) {
+            return null;
+        }
+
         if ($this->canCancel($reservation, $user)) {
             return null;
         }
@@ -123,6 +127,8 @@ class ReservationRulesService
             $cancelSecondsRemaining = max(0, $cancelDeadline->getTimestamp() - $now->getTimestamp());
         }
 
+        $isAdmin = $user?->isAdministrator() ?? false;
+
         return [
             'edit_window_minutes' => $this->editWindowMinutes(),
             'edit_window_seconds' => $this->editWindowSeconds(),
@@ -130,6 +136,7 @@ class ReservationRulesService
             'starts_at' => CarbonImmutable::parse($reservation->starts_at)->toIso8601String(),
             'editable_until' => $editableUntil->toIso8601String(),
             'cancel_deadline' => $cancelDeadline->toIso8601String(),
+            'admin_can_cancel' => $isAdmin,
             'can_edit' => $this->canEdit($reservation, $now) && ($user === null || $user->id === $reservation->user_id),
             'can_cancel' => $this->canCancel($reservation, $user, $now),
             'in_edit_window' => $inEditWindow,
