@@ -38,7 +38,8 @@
                         </button>
                         <button
                             type="button"
-                            class="px-md h-10 border border-slate-200 text-primary rounded-lg font-label-md hover:bg-slate-50 transition-colors hidden sm:flex items-center gap-xs"
+                            class="px-md h-10 border border-slate-200 text-primary rounded-lg font-label-md hover:bg-slate-50 transition-colors hidden sm:flex items-center gap-xs disabled:opacity-50 disabled:pointer-events-none"
+                            :disabled="Boolean(dayClosure)"
                             @click="openModal()"
                         >
                             <AppIcon name="add" size="sm" />
@@ -49,7 +50,19 @@
 
                 <!-- Grade de horários -->
                 <div class="flex-1 overflow-y-auto bg-slate-50 relative p-md flex flex-col gap-md min-h-0">
-                    <p class="text-label-sm text-slate-500 flex items-center gap-1 shrink-0">
+                    <div
+                        v-if="dayClosure"
+                        class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-center shrink-0"
+                    >
+                        <p class="text-body-sm font-semibold text-amber-900">
+                            {{ dayClosure.message }}
+                        </p>
+                        <p v-if="dayClosure.type === 'holiday' && dayClosure.label" class="text-label-sm text-amber-800/80 mt-1">
+                            Não é possível criar ou alterar reservas neste dia.
+                        </p>
+                    </div>
+
+                    <p v-else class="text-label-sm text-slate-500 flex items-center gap-1 shrink-0">
                         <AppIcon name="check_box" size="sm" />
                         Marque os horários em sequência (sem pular horas).
                     </p>
@@ -80,7 +93,7 @@
                         <span class="text-body-sm text-slate-500">Carregando agenda…</span>
                     </div>
 
-                    <ul class="space-y-2 list-none p-0 m-0">
+                    <ul v-if="!dayClosure" class="space-y-2 list-none p-0 m-0">
                         <li v-for="hour in hours" :key="hour">
                             <label class="slot-row" :class="slotPickerClass(hour)">
                                 <input
@@ -351,6 +364,7 @@ import ReservationSuccessAlert from '../components/ReservationSuccessAlert.vue';
 import AppActionDialog from '../components/AppActionDialog.vue';
 import { END_HOUR, HOUR_SLOTS, START_HOUR } from '../constants/coworkingHours';
 import { api } from '../bootstrap';
+import { fetchDayBookingStatus } from '../utils/bookingCalendar';
 import { formatCountdown, refreshRulesMeta } from '../utils/reservationRules';
 
 const route = useRoute();
@@ -359,6 +373,7 @@ const router = useRouter();
 const user = ref(null);
 const reservations = ref([]);
 const loadingGrid = ref(false);
+const dayClosure = ref(null);
 const saving = ref(false);
 const formError = ref('');
 const selectedDate = ref(startOfDay(new Date()));
@@ -411,9 +426,13 @@ const bookedSlotsCount = computed(() => {
 });
 
 /** Horários que ainda podem ser reservados (não ocupados e não passados). */
-const freeSlotsCount = computed(() =>
-    hours.filter((hour) => !slotHasReservation(hour) && !isHourPast(hour)).length,
-);
+const freeSlotsCount = computed(() => {
+    if (dayClosure.value) {
+        return 0;
+    }
+
+    return hours.filter((hour) => !slotHasReservation(hour) && !isHourPast(hour)).length;
+});
 
 const occupancyPercent = computed(() => {
     if (hours.length === 0) {
@@ -619,7 +638,7 @@ function isHourSelected(hour) {
 }
 
 function toggleHour(hour) {
-    if (slotHasReservation(hour) || isHourPast(hour)) {
+    if (dayClosure.value || slotHasReservation(hour) || isHourPast(hour)) {
         return;
     }
     if (isHourSelected(hour)) {
@@ -647,6 +666,10 @@ function clearSelection() {
 }
 
 function confirmSelection() {
+    if (dayClosure.value) {
+        return;
+    }
+
     const range = selectionRange.value;
     if (!range || selectionConflict.value || selectionNotContiguous.value) {
         return;
@@ -684,6 +707,11 @@ function goToday() {
 }
 
 function openModal() {
+    if (dayClosure.value) {
+        showFeedback('warning', 'Dia indisponível', dayClosure.value.message);
+        return;
+    }
+
     editingReservation.value = null;
     const first = isSameDay(selectedDate.value, new Date())
         ? nextAvailableHour()
@@ -724,6 +752,10 @@ function closeSuccessAlert() {
 
 function openEditModal(r) {
     if (!canEdit(r)) {
+        return;
+    }
+    if (dayClosure.value) {
+        showFeedback('warning', 'Dia indisponível', dayClosure.value.message);
         return;
     }
     editingReservation.value = r;
@@ -785,9 +817,27 @@ async function loadMe() {
     user.value = data;
 }
 
+async function loadDayClosure() {
+    try {
+        const status = await fetchDayBookingStatus(selectedDate.value);
+        dayClosure.value = status.bookable
+            ? null
+            : {
+                message: status.message,
+                type: status.type,
+                label: status.label,
+            };
+    } catch {
+        dayClosure.value = null;
+    }
+}
+
 async function loadReservations() {
     loadingGrid.value = true;
     try {
+        await loadDayClosure();
+        clearSelection();
+
         const from = new Date(selectedDate.value);
         from.setDate(from.getDate() - 1);
         const to = new Date(selectedDate.value);

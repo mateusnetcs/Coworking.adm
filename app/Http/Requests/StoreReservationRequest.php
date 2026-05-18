@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Reservation;
+use App\Services\BookingCalendarService;
 use App\Support\BrazilPhone;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
@@ -69,6 +70,8 @@ class StoreReservationRequest extends FormRequest
 
             $startsAt = CarbonImmutable::parse($this->input('starts_at'));
             $endsAt = CarbonImmutable::parse($this->input('ends_at'));
+
+            app(BookingCalendarService::class)->assertBookableRange($startsAt, $endsAt);
 
             $windowStart = $startsAt->copy()->setTime($startHour, 0);
             $windowEnd = $startsAt->copy()->setTime($endHour, 0);

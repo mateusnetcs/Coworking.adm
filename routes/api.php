@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BookingCalendarController;
 use App\Http\Controllers\Api\Admin\AdminReservationController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Auth\LoginController;
@@ -35,6 +36,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     })->name('api.user');
 
     Route::post('/logout', [LogoutController::class, 'store'])->name('api.logout');
+
+    Route::get('/booking-calendar/day', [BookingCalendarController::class, 'day'])
+        ->name('api.booking-calendar.day');
 
     Route::get('/reservations', [ReservationController::class, 'index'])->name('api.reservations.index');
 
