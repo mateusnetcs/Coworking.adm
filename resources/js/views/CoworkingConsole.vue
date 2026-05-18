@@ -817,19 +817,19 @@ async function loadMe() {
     user.value = data;
 }
 
+function applyDayClosureStatus(status) {
+    dayClosure.value = status.bookable
+        ? null
+        : {
+            message: status.message,
+            type: status.type,
+            label: status.label,
+        };
+}
+
 async function loadDayClosure() {
-    try {
-        const status = await fetchDayBookingStatus(selectedDate.value);
-        dayClosure.value = status.bookable
-            ? null
-            : {
-                message: status.message,
-                type: status.type,
-                label: status.label,
-            };
-    } catch {
-        dayClosure.value = null;
-    }
+    const status = await fetchDayBookingStatus(selectedDate.value);
+    applyDayClosureStatus(status);
 }
 
 async function loadReservations() {

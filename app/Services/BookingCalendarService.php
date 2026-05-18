@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\CarbonImmutable;
+use Throwable;
 
 class BookingCalendarService
 {
@@ -88,13 +89,18 @@ class BookingCalendarService
             return self::$holidayCache;
         }
 
-        $currentYear = (int) now()->timezone(config('app.timezone'))->year;
-        $years = range($currentYear - 1, $currentYear + 2);
+        $timezone = config('app.timezone');
+        $currentYear = (int) now()->timezone($timezone)->year;
+        $years = range($currentYear - 2, $currentYear + 5);
 
         $map = [];
 
         foreach ($years as $year) {
-            $map = array_merge($map, $this->nationalHolidaysForYear($year));
+            $map = array_merge($map, $this->fixedNationalHolidaysForYear($year));
+        }
+
+        foreach ($years as $year) {
+            $map = array_merge($map, $this->movableNationalHolidaysForYear($year));
         }
 
         $extras = config('coworking_holidays', []);
@@ -115,9 +121,9 @@ class BookingCalendarService
     /**
      * @return array<string, string>
      */
-    private function nationalHolidaysForYear(int $year): array
+    private function fixedNationalHolidaysForYear(int $year): array
     {
-        $fixed = [
+        return [
             sprintf('%04d-01-01', $year) => 'Confraternização Universal',
             sprintf('%04d-04-21', $year) => 'Tiradentes',
             sprintf('%04d-05-01', $year) => 'Dia do Trabalho',
@@ -128,18 +134,58 @@ class BookingCalendarService
             sprintf('%04d-11-20', $year) => 'Dia da Consciência Negra',
             sprintf('%04d-12-25', $year) => 'Natal',
         ];
+    }
 
-        $easter = CarbonImmutable::createFromTimestamp(easter_date($year), config('app.timezone'))->startOfDay();
-        $ashWednesday = $easter->subDays(46);
+    /**
+     * @return array<string, string>
+     */
+    private function movableNationalHolidaysForYear(int $year): array
+    {
+        try {
+            $easter = $this->easterSunday($year);
+            $ashWednesday = $easter->subDays(46);
 
-        $movable = [
-            $ashWednesday->subDays(2)->toDateString() => 'Segunda-feira de Carnaval',
-            $ashWednesday->subDay()->toDateString() => 'Terça-feira de Carnaval',
-            $easter->subDays(2)->toDateString() => 'Sexta-feira Santa',
-            $easter->addDays(60)->toDateString() => 'Corpus Christi',
-        ];
+            return [
+                $ashWednesday->subDays(2)->toDateString() => 'Segunda-feira de Carnaval',
+                $ashWednesday->subDay()->toDateString() => 'Terça-feira de Carnaval',
+                $easter->subDays(2)->toDateString() => 'Sexta-feira Santa',
+                $easter->addDays(60)->toDateString() => 'Corpus Christi',
+            ];
+        } catch (Throwable) {
+            return [];
+        }
+    }
 
-        return array_merge($fixed, $movable);
+    private function easterSunday(int $year): CarbonImmutable
+    {
+        $timezone = config('app.timezone');
+        $timestamp = $this->easterSundayTimestamp($year);
+
+        return CarbonImmutable::createFromTimestamp($timestamp, $timezone)->startOfDay();
+    }
+
+    private function easterSundayTimestamp(int $year): int
+    {
+        if (function_exists('easter_date')) {
+            return easter_date($year);
+        }
+
+        $a = $year % 19;
+        $b = intdiv($year, 100);
+        $c = $year % 100;
+        $d = intdiv($b, 4);
+        $e = $b % 4;
+        $f = intdiv($b + 8, 25);
+        $g = intdiv($b - $f + 1, 3);
+        $h = (19 * $a + $b - $d - $g + 15) % 30;
+        $i = intdiv($c, 4);
+        $k = $c % 4;
+        $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+        $m = intdiv($a + 11 * $h + 22 * $l, 451);
+        $month = intdiv($h + $l - 7 * $m + 114, 31);
+        $day = (($h + $l - 7 * $m + 114) % 31) + 1;
+
+        return mktime(0, 0, 0, $month, $day, $year);
     }
 
     /**

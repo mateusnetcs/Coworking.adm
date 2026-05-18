@@ -32,6 +32,19 @@ class BookingCalendarServiceTest extends TestCase
         $this->assertSame('Reservas canceladas - feriado de Natal', $closure['message']);
     }
 
+    public function test_independence_day_holiday_message(): void
+    {
+        $service = new BookingCalendarService;
+
+        $independence = CarbonImmutable::parse('2026-09-07', 'America/Sao_Paulo');
+        $closure = $service->closureForDate($independence);
+
+        $this->assertNotNull($closure);
+        $this->assertSame('holiday', $closure['type']);
+        $this->assertSame('Independência do Brasil', $closure['label']);
+        $this->assertSame('Reservas canceladas - feriado de Independência do Brasil', $closure['message']);
+    }
+
     public function test_weekday_without_holiday_is_bookable(): void
     {
         $service = new BookingCalendarService;
