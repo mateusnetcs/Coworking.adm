@@ -22,7 +22,10 @@ class GoogleAuthController extends Controller
             );
         }
 
-        return Socialite::driver('google')->stateless()->redirect();
+        return Socialite::driver('google')
+            ->stateless()
+            ->redirectUrl(url('/auth/google/callback'))
+            ->redirect();
     }
 
     public function callback(): RedirectResponse

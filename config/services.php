@@ -38,7 +38,9 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL', 'http://127.0.0.1:8000'), '/').'/auth/google/callback'),
+        // Sobrescrito em runtime (AppServiceProvider) conforme o domínio da requisição.
+        // GOOGLE_REDIRECT_URI só use se precisar forçar URL fixa; senão deixe vazio.
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
 ];
